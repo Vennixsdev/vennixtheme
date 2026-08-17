@@ -1,0 +1,13 @@
+<div class="container section" style="text-align:center;padding-block:clamp(3rem,8vw,5rem);">
+  <p style="font-size:1rem;color:var(--color-muted);margin-bottom:.4rem;">Error 404</p>
+  <h1>Page not found</h1>
+  <p style="color:var(--color-muted);max-width:46ch;margin:.7rem auto 1.4rem;">Let's get you back on track. The product you were looking for might have moved or sold out.</p>
+  <div style="display:flex;gap:.6rem;justify-content:center;flex-wrap:wrap;">
+    <a href="{{ routes.root_url }}" class="btn btn--primary btn--lg">Back home</a>
+    <a href="{{ collections.all.url }}" class="btn btn--outline btn--lg">Browse catalog</a>
+    <a href="mailto:{{ settings.support_email }}" class="btn btn--ghost">Email us</a>
+  </div>
+</div>
+{% schema %}
+{ "name": "404 page", "tag": "section" }
+{% endschema %}

@@ -1,0 +1,71 @@
+<div class="container section">
+  {% render 'breadcrumbs' %}
+
+  <header class="collection-header" style="margin-bottom:1.6rem;">
+    <div>
+      <small class="eyebrow">{{ collection.products_count | default: 0 }} products</small>
+      <h1 style="margin-top:.5rem;">{{ collection.title }}</h1>
+      {%- if collection.description != blank -%}
+        <p style="color:var(--color-muted);max-width:60ch;margin-top:.7rem;">{{ collection.description | strip_html | truncatewords: 32 }}</p>
+      {%- endif -%}
+    </div>
+  </header>
+
+  <div class="collection-layout">
+    {%- if section.settings.show_filters -%}
+      <aside class="filter-sidebar" data-filter-sidebar>
+        {% render 'filter-sidebar', collection: collection %}
+      </aside>
+    {%- endif -%}
+
+    <div class="collection-main">
+      <div class="collection-toolbar">
+        <div class="collection-toolbar-left">
+          <strong class="collection-count">{{ collection.products_count | default: 0 }} products</strong>
+          {%- if current_tags.size > 0 or search.performed -%}
+            <div class="active-tags" style="display:flex;gap:.4rem;flex-wrap:wrap;">
+              {%- for tag in current_tags -%}
+                <a href="{{ tag | link_to_tag: tag | remove: 'tag=' | prepend: collection.url }}" class="badge badge--instock">{{ tag }} ×</a>
+              {%- endfor -%}
+              <a href="{{ collection.url }}" class="badge badge--soldout">Clear all</a>
+            </div>
+          {%- endif -%}
+        </div>
+        <div class="collection-toolbar-right">
+          {% render 'sort-dropdown', sort_by: sort_by %}
+        </div>
+      </div>
+
+      {%- if collection.products.size > 0 -%}
+        <div class="collection-grid" data-collection-grid>
+          {%- for product in collection.products -%}
+            {% render 'product-card', product: product %}
+          {%- endfor -%}
+        </div>
+
+        {%- if paginate.pages > 1 -%}
+          <nav class="collection-pagination" aria-label="Pagination">
+            {{ paginate | default_pagination }}
+          </nav>
+        {%- endif -%}
+      {%- else -%}
+        <div class="collection-empty">
+          <strong style="display:block;margin-bottom:.5rem;color:var(--color-fg);">No products yet</strong>
+          <p style="font-size:.9rem;">Try clearing your filters or browsing the full catalog.</p>
+          <a href="{{ collections.all.url }}" class="btn btn--primary" style="margin-top:1rem;">Browse all</a>
+        </div>
+      {%- endif -%}
+    </div>
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Collection grid",
+  "tag": "section",
+  "settings": [
+    { "type": "checkbox", "id": "show_filters", "label": "Show filters", "default": true },
+    { "type": "checkbox", "id": "sticky_scroll", "label": "Sticky toolbar", "default": true }
+  ]
+}
+{% endschema %}

@@ -1,0 +1,24 @@
+<div class="mobile-menu" data-mobile-menu data-overlay aria-hidden="true" aria-label="Mobile menu">
+  <div class="mobile-menu-panel">
+    <div class="mobile-menu-head">
+      <strong>{{ shop.name }}</strong>
+      <button type="button" class="mobile-menu-close" data-mobile-close aria-label="Close menu">×</button>
+    </div>
+    <ul>
+      {%- for link in linklists[section.settings.menu | default: 'main-menu'].links -%}
+        <li>
+          <a href="{{ link.url }}">{{ link.title }}</a>
+          {%- if link.links.size > 0 -%}
+            <ul style="padding-left:1rem;border-top:1px solid var(--color-border);">
+              {%- for child in link.links -%}
+                <li><a href="{{ child.url }}">{{ child.title }}</a></li>
+              {%- endfor -%}
+            </ul>
+          {%- endif -%}
+        </li>
+      {%- endfor -%}
+      <li><a href="{{ routes.account_url }}">Account</a></li>
+      <li><a href="mailto:{{ settings.support_email }}">Support</a></li>
+    </ul>
+  </div>
+</div>

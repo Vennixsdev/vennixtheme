@@ -1,0 +1,186 @@
+{% render 'product-variants' %}
+
+<div class="container section">
+  {% render 'breadcrumbs' %}
+
+  <div class="product-page">
+    <div class="product-media-gallery" data-product-gallery>
+      <div class="gallery-main">
+        {%- for media in product.media -%}
+          <image-component
+            data-media-id="{{ media.id }}"
+            data-media-type="{{ media.media_type }}"
+            hidden
+          >
+            {%- if media.media_type == 'image' -%}
+              <img src="{{ media.preview_image | image_url: width: 1200 }}" alt="{{ media.alt | default: product.title | escape }}" loading="lazy">
+            {%- elsif media.media_type == 'video' -%}
+              <div class="gallery-video-wrap">
+                {{ media | video_tag: autoplay: false, loop: true, controls: true, preload: 'metadata' }}
+              </div>
+            {%- elsif media.media_type == 'external_video' -%}
+              <div class="gallery-video-wrap">{{ media | external_video_tag }}</div>
+            {%- elsif media.media_type == 'model' -%}
+              {{ media | model_viewer_tag }}
+            {%- endif -%}
+          </image-component>
+        {%- endfor -%}
+        <div class="gallery-main-display" data-gallery-main></div>
+      </div>
+      <div class="gallery-thumbs">
+        {%- for media in product.media -%}
+          <button type="button" class="gallery-thumb" data-media-trigger="{{ media.id }}" aria-current="{% if forloop.first %}true{% else %}false{% endif %}">
+            <img src="{{ media.preview_image | image_url: width: 200 }}" alt="" loading="lazy">
+          </button>
+        {%- endfor -%}
+      </div>
+    </div>
+
+    <div class="product-info" data-product-info data-product-id="{{ product.id }}">
+      <div class="product-info-badge-wrap">
+        {% render 'badge', product: product %}
+      </div>
+      <h1>{{ product.title }}</h1>
+      <div class="product-info-meta">
+        {%- if product.vendor != blank -%}
+          <a href="{{ product.vendor | url_for_vendor }}" class="product-info-meta-vendor">{{ product.vendor }}</a>
+        {%- endif -%}
+        {%- if product.type != blank -%}
+          <span class="product-info-meta-dot">•</span>
+          <a href="{{ product.type | url_for_type }}">{{ product.type }}</a>
+        {%- endif -%}
+        {%- if product.metafields.reviews.rating != blank -%}
+          <span class="product-info-meta-dot">•</span>
+          <span class="product-card-rating">★ {{ product.metafields.reviews.rating }} ({{ product.metafields.reviews.rating_count | default: 0 }} reviews)</span>
+        {%- endif -%}
+      </div>
+
+      <div class="product-info-price">
+        {% render 'price', product: product %}
+      </div>
+
+      {%- if product.description != blank -%}
+        <div class="product-info-description">
+          {{ product.description }}
+        </div>
+      {%- endif -%}
+
+      <form action="{{ routes.cart_add_url }}" method="post" enctype="multipart/form-data" class="product-info-buy" data-product-form>
+        {%- render 'product-info', product: product -%}
+
+        <div class="add-to-cart-row">
+          <div class="qty-picker" aria-label="Quantity">
+            <button type="button" data-qty="-1" aria-label="Decrease quantity">−</button>
+            <input type="number" name="quantity" min="1" value="1" inputmode="numeric" data-qty-input>
+            <button type="button" data-qty="1" aria-label="Increase quantity">+</button>
+          </div>
+
+          <button type="submit" class="btn btn--primary btn--lg btn--block" data-add-to-cart
+            {%- unless product.available -%}disabled aria-disabled="true"{%- endunless -%}
+          >
+            {%- if product.available -%}
+              {{ 'products.product.add_to_cart' | t }}
+            {%- else -%}
+              {{ 'products.product.sold_out' | t }}
+            {%- endif -%}
+          </button>
+        </div>
+
+        <button type="button" class="btn btn--ghost btn--block" data-buy-now data-product-id="{{ product.id }}" {% unless product.available %}disabled aria-disabled="true"{% endunless %}>
+          Buy now — secure checkout
+        </button>
+      </form>
+
+      <div class="product-info-trust">
+        {%- for block in section.blocks -%}
+          {%- if block.type == 'trust' -%}
+            <div class="product-info-trust-item" {{ block.shopify_attributes }}>
+              <span aria-hidden="true">{{ block.settings.icon }}</span>
+              <span>{{ block.settings.text }}</span>
+            </div>
+          {%- endif -%}
+        {%- endfor -%}
+      </div>
+
+      <div class="product-info-accordion">
+        {%- for block in section.blocks -%}
+          {%- if block.type == 'accordion' -%}
+            <div class="accordion-row" data-open="false" {{ block.shopify_attributes }}>
+              <button type="button" class="accordion-head" data-accordion-toggle>
+                <span>{{ block.settings.heading }}</span>
+                <svg class="accordion-head-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/></svg>
+              </button>
+              <div class="accordion-body">{{ block.settings.body }}</div>
+            </div>
+          {%- endif -%}
+        {%- endfor -%}
+      </div>
+    </div>
+  </div>
+
+  <div class="sticky-atc" data-sticky-atc>
+    <div class="sticky-atc-bar">
+      <div class="sticky-atc-info">
+        <div class="sticky-atc-thumb">
+          {%- if product.featured_image -%}
+            <img src="{{ product.featured_image | image_url: width: 120 }}" alt="{{ product.title | escape }}">
+          {%- endif -%}
+        </div>
+        <div>
+          <div class="sticky-atc-title">{{ product.title }}</div>
+          <div class="sticky-atc-price">{{ product.price | money }}</div>
+        </div>
+      </div>
+      <div class="sticky-atc-actions">
+        <button class="btn btn--primary" type="button" data-sticky-add {% unless product.available %}disabled aria-disabled="true"{% endunless %}>Add to cart</button>
+      </div>
+    </div>
+  </div>
+
+  {%- if section.settings.show_payments_row -%}
+    <div class="trust-block" style="margin-top:2rem;">
+      <div class="trust-item"><div><h3>Secure checkout</h3><p>SSL &amp; PCI compliant · Shop Pay &amp; Apple Pay supported</p></div></div>
+      <div class="trust-item"><div><h3>Fast shipping</h3><p>Most orders ship within 24 hours</p></div></div>
+      <div class="trust-item"><div><h3>Easy returns</h3><p>30-day return policy on every item</p></div></div>
+      <div class="trust-item"><div><h3>Real support</h3><p>Email <a href="mailto:{{ settings.support_email }}" style="color:var(--color-accent);">{{ settings.support_email }}</a></p></div></div>
+    </div>
+  {%- endif -%}
+</div>
+
+{% schema %}
+{
+  "name": "Product main",
+  "tag": "section",
+  "settings": [
+    { "type": "checkbox", "id": "show_payment_row", "label": "Show payments row", "default": true },
+    { "type": "checkbox", "id": "show_social_share", "label": "Show social share", "default": true }
+  ],
+  "blocks": [
+    {
+      "type": "trust",
+      "name": "Trust line",
+      "settings": [
+        { "type": "html", "id": "icon", "label": "SVG icon (24px)" },
+        { "type": "text", "id": "text", "label": "Text", "default": "Free shipping on orders $75+" }
+      ]
+    },
+    {
+      "type": "accordion",
+      "name": "Accordion",
+      "settings": [
+        { "type": "text", "id": "heading", "label": "Heading", "default": "Materials &amp; care" },
+        { "type": "richtext", "id": "body", "label": "Body", "default": "<p>Made from ...</p>" }
+      ]
+    }
+  ],
+  "default": {
+    "blocks": [
+      { "type": "trust", "settings": { "text": "Free shipping on orders $75+" } },
+      { "type": "trust", "settings": { "text": "Easy 30-day returns" } },
+      { "type": "accordion", "settings": { "heading": "Materials &amp; care", "body": "<p>Made from sustainably sourced materials. Cold wash, tumble dry low.</p>" } },
+      { "type": "accordion", "settings": { "heading": "Shipping &amp; returns", "body": "<p>Ships within 24 hours. 30-day return window.</p>" } },
+      { "type": "accordion", "settings": { "heading": "Got questions?", "body": "<p>Email us at support@vennixstore.com — we usually reply within an hour.</p>" } }
+    ]
+  }
+}
+{% endschema %}

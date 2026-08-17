@@ -1,0 +1,31 @@
+{%- liquid
+  assign p = product | default: card_product
+  compute_tag = ''
+  if p.compare_at_price > p.price and p.compare_at_price != blank
+    compute_tag = 'sale'
+  endif
+  assign created = p.created_at | date: '%s' | plus: 0
+  assign now_ts = 'now' | date: '%s' | plus: 0
+  assign is_new = false
+  if now_ts | minus: created < 2592000
+    assign is_new = true
+  endif
+-%}
+<span class="badge-stack" data-badge-stack>
+  {%- if compute_tag == 'sale' -%}
+    <span class="badge badge--sale">Sale</span>
+  {%- endif -%}
+  {%- if is_new -%}
+    <span class="badge badge--new">New</span>
+  {%- endif -%}
+  {%- if p.tags contains 'limited' -%}
+    <span class="badge badge--limited">Limited</span>
+  {%- endif -%}
+  {%- if p.available == false -%}
+    <span class="badge badge--soldout">Sold out</span>
+  {%- elsif p.available == true and p.quantity_policy.minimum == 1 and p.inventory_management and p.inventory_quantity <= 5 and p.inventory_quantity > 0 -%}
+    <span class="badge badge--instock">Only {{ p.inventory_quantity }} left</span>
+  {%- elsif p.available -%}
+    <span class="badge badge--instock">In stock</span>
+  {%- endif -%}
+</span>

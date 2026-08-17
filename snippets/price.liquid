@@ -1,0 +1,18 @@
+{%- liquid
+  assign price = product.price | default: card_product.price
+  assign compare_at_price = product.compare_at_price | default: card_product.compare_at_price
+  assign available = product.available | default: card_product.available
+-%}
+<span class="price" data-price>
+  {%- if compare_at_price > price and compare_at_price != blank -%}
+    <span class="price-current price-current--sale">{{ price | money }}</span>
+    <span class="price-compare">{{ compare_at_price | money }}</span>
+    {%- assign savings = compare_at_price | minus: price -%}
+    <span class="badge badge--sale">Save {{ savings | money }}</span>
+  {%- else -%}
+    <span class="price-current">{{ price | money }}</span>
+  {%- endif -%}
+  {%- if product.price_varies -%}
+    <span class="price-unit">from</span>
+  {%- endif -%}
+</span>

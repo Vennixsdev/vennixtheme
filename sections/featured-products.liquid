@@ -1,0 +1,51 @@
+<div class="container section">
+  <div class="heading-row">
+    <div>
+      <small class="eyebrow">{{ section.settings.eyebrow | default: 'Selected for you' }}</small>
+      <h2>{{ section.settings.title | default: 'Featured products' }}</h2>
+    </div>
+
+    {%- if section.settings.show_merch_tabs -%}
+      <div class="heading-extra">
+        <div class="merch-tabs" data-merch-tabs>
+          <button type="button" class="merch-tab" aria-current="true" data-merch-trigger="featured">Featured</button>
+          {%- if section.settings.enable_new -%}
+            <button type="button" class="merch-tab" data-merch-trigger="new">New arrivals</button>
+          {%- endif -%}
+          {%- if section.settings.enable_best -%}
+            <button type="button" class="merch-tab" data-merch-trigger="best">Best sellers</button>
+          {%- endif -%}
+        </div>
+        {%- if section.settings.view_all != blank -%}
+          <a href="{{ section.settings.view_all }}" class="btn btn--text">All →</a>
+        {%- endif -%}
+      </div>
+    {%- endif -%}
+  </div>
+
+  <div class="collection-grid" data-merch-pane="featured">
+    {%- assign products = collections[section.settings.collection].products | default: collections['frontpage'].products | default: collections.all.products -%}
+    {%- assign limit = section.settings.products_to_show | default: 8 -%}
+    {%- for p in products limit: limit -%}
+      {% render 'product-card', product: p %}
+    {%- endfor -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Featured products",
+  "tag": "section",
+  "settings": [
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "Selected for you" },
+    { "type": "text", "id": "title", "label": "Title", "default": "Featured products" },
+    { "type": "collection", "id": "collection", "label": "Collection" },
+    { "type": "range", "id": "products_to_show", "min": 4, "max": 24, "step": 4, "label": "Products to show", "default": 8 },
+    { "type": "url", "id": "view_all", "label": "View-all URL" },
+    { "type": "checkbox", "id": "show_merch_tabs", "label": "Show merch tabs", "default": true },
+    { "type": "checkbox", "id": "enable_new", "label": "Enable new arrivals tab", "default": true },
+    { "type": "checkbox", "id": "enable_best", "label": "Enable best sellers tab", "default": true }
+  ],
+  "presets": [{ "name": "Featured products" }]
+}
+{% endschema %}

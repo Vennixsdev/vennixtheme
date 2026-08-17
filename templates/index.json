@@ -1,0 +1,12 @@
+{
+  "sections": {
+    "hero": { "type": "hero" },
+    "discovery": { "type": "discovery-collection" },
+    "featured-products": { "type": "featured-products" },
+    "featured-collections": { "type": "featured-collections" },
+    "recently-viewed": { "type": "recently-viewed" },
+    "trust-block": { "type": "trust-block" },
+    "newsletter": { "type": "newsletter" }
+  },
+  "order": ["hero","discovery","featured-products","featured-collections","recently-viewed","trust-block","newsletter"]
+}

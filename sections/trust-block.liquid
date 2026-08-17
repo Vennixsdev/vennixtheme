@@ -1,0 +1,41 @@
+<div class="container section--tight">
+  <div class="trust-block">
+    {%- for block in section.blocks -%}
+      {%- if block.type == 'trust' -%}
+        <div class="trust-item" {{ block.shopify_attributes }}>
+          <span aria-hidden="true">{{ block.settings.icon }}</span>
+          <div>
+            <h3>{{ block.settings.title }}</h3>
+            <p>{{ block.settings.text }}</p>
+          </div>
+        </div>
+      {%- endif -%}
+    {%- endfor -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Trust block",
+  "settings": [],
+  "blocks": [
+    {
+      "type": "trust",
+      "name": "Trust item",
+      "settings": [
+        { "type": "html", "id": "icon", "label": "SVG icon (34px)" },
+        { "type": "text", "id": "title", "default": "Free shipping" },
+        { "type": "textarea", "id": "text", "default": "On orders over $75" }
+      ]
+    }
+  ],
+  "default": {
+    "blocks": [
+      { "type": "trust", "settings": { "title": "Free shipping", "text": "On orders over $75" } },
+      { "type": "trust", "settings": { "title": "Easy returns", "text": "30-day window on every item" } },
+      { "type": "trust", "settings": { "title": "Secure checkout", "text": "SSL · PCI · Shop Pay enabled" } },
+      { "type": "trust", "settings": { "title": "Real support", "text": "Reach a human within an hour" } }
+    ]
+  }
+}
+{% endschema %}

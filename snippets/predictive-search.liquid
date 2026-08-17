@@ -1,0 +1,22 @@
+<div class="predictive-search-panel" data-overlay role="dialog" aria-label="Predictive search" tabindex="-1">
+  <div class="predictive-search-input">
+    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
+    <input type="search" placeholder="{{ 'general.search.placeholder' | t }}" data-predictive-input autocomplete="off">
+    <button type="button" class="overlay-close" data-search-close aria-label="Close search">×</button>
+  </div>
+  <div class="predictive-search-body" data-predictive-body>
+    <div class="predictive-search-section">
+      <h4>Trending</h4>
+      {%- assign trending = 'Hoodies,Sneakers,Outerwear,Sale' | split: ',' -%}
+      <div style="padding:0 .8rem;display:flex;gap:.4rem;flex-wrap:wrap;">
+        {%- for t in trending -%}
+          <a class="icon-pill" href="{{ routes.search_url }}?q={{ t | url_encode }}">{{ t }}</a>
+        {%- endfor -%}
+      </div>
+    </div>
+  </div>
+  <div class="predictive-search-footer">
+    <small>Type to search · press ESC to close</small>
+    <a href="{{ routes.search_url }}">View all →</a>
+  </div>
+</div>

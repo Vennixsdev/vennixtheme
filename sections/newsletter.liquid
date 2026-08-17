@@ -1,0 +1,32 @@
+<div class="container section">
+  <div class="newsletter-band reveal">
+    <div>
+      <small class="eyebrow">{{ section.settings.eyebrow | default: '10% off your first order' }}</small>
+      <h2>{{ section.settings.title | default: 'Get early access & private drops' }}</h2>
+      <p style="color:color-mix(in oklab,var(--color-fg) 78%,transparent);max-width:46ch;">{{ section.settings.subtitle | default: 'Shopping news, restocks, and product drops — straight to your inbox. No noise, ever.' }}</p>
+    </div>
+    {%- if section.settings.show_form != false -%}
+      <form class="field" action="/contact#newsletter" method="post" id="newsletter-form">
+        <input type="hidden" name="contact[tags]" value="newsletter">
+        <div class="input-group">
+          <input class="input" type="email" name="contact[email]" placeholder="you@email.com" required autocomplete="email">
+          <button type="submit" class="btn btn--primary">{{ section.settings.button_text | default: 'Subscribe' }}</button>
+        </div>
+        <small class="small" style="color:var(--color-muted);">By subscribing you agree to receive marketing emails. Unsubscribe anytime.</small>
+      </form>
+    {%- endif -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Newsletter",
+  "settings": [
+    { "type": "text", "id": "eyebrow", "default": "10% off your first order" },
+    { "type": "text", "id": "title", "default": "Get early access & private drops" },
+    { "type": "textarea", "id": "subtitle", "default": "Shopping news, restocks, and product drops — straight to your inbox. No noise, ever." },
+    { "type": "text", "id": "button_text", "default": "Subscribe" },
+    { "type": "checkbox", "id": "show_form", "default": true }
+  ]
+}
+{% endschema %}
