@@ -1,0 +1,18 @@
+<div class="sort-dropdown" data-dropdown>
+  <button class="sort-dropdown-button" type="button" aria-haspopup="listbox" aria-expanded="false">
+    <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><line x1="3" y1="6" x2="14" y2="6"/><line x1="3" y1="12" x2="11" y2="12"/><line x1="3" y1="18" x2="16" y2="18"/><polyline points="17 6 21 10 17 14"/></svg>
+    Sort by
+    <strong data-current-sort>{{ sort_by | default: 'manual' | replace: '-', ' ' | capitalize }}</strong>
+    <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="6 9 12 15 18 9"/></svg>
+  </button>
+  <div class="sort-dropdown-panel" role="listbox" aria-label="Sort options">
+    {%- assign options = 'manual,price-ascending,price-descending,title-ascending,title-descending,created-descending,best-selling' | split: ',' -%}
+    {%- for opt in options -%}
+      {%- assign label = opt | replace: '-', ' ' | capitalize | replace: 'Ascending', '↑' | replace: 'Descending', '↓' -%}
+      <div class="sort-option" data-sort-value="{{ opt }}" aria-current="{% if opt == sort_by %}true{% else %}false{% endif %}">
+        <span>{{ label }}</span>
+        {%- if opt == sort_by -%}<svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="20 6 9 17 4 12"/></svg>{%- endif -%}
+      </div>
+    {%- endfor -%}
+  </div>
+</div>

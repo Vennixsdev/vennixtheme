@@ -1,0 +1,66 @@
+<div class="container section">
+  <div class="heading-row">
+    <div>
+      <small class="eyebrow">Feeds</small>
+      <h2>{{ section.settings.title | default: 'Shop by category' }}</h2>
+    </div>
+    {%- if section.settings.view_all != blank -%}
+      <a href="{{ section.settings.view_all }}" class="btn btn--text">Browse all →</a>
+    {%- endif -%}
+  </div>
+
+  <div class="featured-collections-grid" style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));">
+    {%- for block in section.blocks -%}
+      {%- if block.type == 'collection' -%}
+        {%- assign c = collections[block.settings.collection] -%}
+        <a href="{{ c.url | default: '#' }}" class="featured-collection-tile" {{ block.shopify_attributes }} style="position:relative;aspect-ratio:1/1;border-radius:var(--radius-lg);overflow:hidden;background:linear-gradient(135deg,var(--color-accent),var(--color-bg));display:block;border:1px solid var(--color-border);transition:transform .25s,border-color .25s;">
+          {%- if c != blank and c.image -%}
+            <img src="{{ c.image | image_url: width: 600 }}" alt="{{ c.title | escape }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
+          {%- endif -%}
+          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 50%, rgba(0,0,0,.55) 100%);"></div>
+          <div style="position:absolute;left:1rem;bottom:1rem;color:#fff;display:flex;flex-direction:column;gap:.2rem;">
+            <strong style="font-size:1.05rem;">{{ block.settings.title | default: c.title | default: 'Collection' }}</strong>
+            <small style="opacity:.85;">Shop now →</small>
+          </div>
+        </a>
+      {%- elsif block.type == 'image' -%}
+        <a href="{{ block.settings.url | default: '#' }}" class="featured-collection-tile" {{ block.shopify_attributes }} style="position:relative;aspect-ratio:1/1;border-radius:var(--radius-lg);overflow:hidden;display:block;border:1px solid var(--color-border);">
+          {%- if block.settings.image != blank -%}
+            <img src="{{ block.settings.image | image_url: width: 600 }}" alt="{{ block.settings.title | escape }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
+          {%- endif -%}
+          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 50%, rgba(0,0,0,.55) 100%);"></div>
+          <div style="position:absolute;left:1rem;bottom:1rem;color:#fff;">
+            <strong style="font-size:1.05rem;">{{ block.settings.title }}</strong>
+          </div>
+        </a>
+      {%- endif -%}
+    {%- endfor -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Featured collections",
+  "tag": "section",
+  "settings": [
+    { "type": "text", "id": "title", "label": "Title", "default": "Shop by category" },
+    { "type": "url",  "id": "view_all", "label": "View-all URL" }
+  ],
+  "blocks": [
+    { "type": "collection", "name": "Collection",
+      "settings": [
+        { "type": "text", "id": "title", "label": "Label" },
+        { "type": "collection", "id": "collection", "label": "Collection" }
+      ]
+    },
+    { "type": "image", "name": "Custom tile",
+      "settings": [
+        { "type": "text", "id": "title", "label": "Label" },
+        { "type": "image_picker", "id": "image", "label": "Image" },
+        { "type": "url", "id": "url", "label": "URL" }
+      ]
+    }
+  ],
+  "max_blocks": 12
+}
+{% endschema %}

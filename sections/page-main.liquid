@@ -1,0 +1,36 @@
+<div class="container section--tight" style="max-width:780px;">
+  {% render 'breadcrumbs' %}
+  <h1 style="font-size:clamp(1.8rem,4vw,2.6rem);margin-bottom:1rem;">{{ page.title }}</h1>
+  <article class="prose" style="color:color-mix(in oklab,var(--color-fg) 80%,transparent);line-height:1.7;font-size:1.02rem;">
+    {{ page.content }}
+  </article>
+</div>
+
+{% if page.handle == 'contact' %}
+<div class="container section--tight" style="max-width:780px;">
+  <h2>Send us a message</h2>
+  <form action="/contact" method="post" class="prose" data-contact-form style="display:flex;flex-direction:column;gap:.9rem;margin-top:1rem;background:var(--color-surface);padding:1.2rem;border-radius:var(--radius-lg);border:1px solid var(--color-border);">
+    <div class="field"><label>Name</label><input class="input" name="contact[name]" required></div>
+    <div class="field"><label>Email</label><input class="input" type="email" name="contact[email]" required></div>
+    <div class="field"><label>Phone</label><input class="input" name="contact[phone]"></div>
+    <div class="field"><label>Message</label><textarea class="textarea" name="contact[body]" required></textarea></div>
+    <button class="btn btn--primary" type="submit">Send message</button>
+    <small style="color:var(--color-muted);">Or email us at <a href="mailto:{{ settings.support_email }}" style="color:var(--color-accent);">{{ settings.support_email }}</a></small>
+  </form>
+</div>
+{% endif %}
+
+{%- style -%}
+.prose h1,.prose h2,.prose h3{color:var(--color-fg);margin-top:1.5rem;margin-bottom:.7rem;font-weight:600}
+.prose p{margin-bottom:1rem}
+.prose a{color:var(--color-accent);text-decoration:underline}
+.prose ul,.prose ol{margin-left:1.2rem;margin-bottom:1rem}
+.prose ul{list-style:disc}
+.prose ol{list-style:decimal}
+.prose img{border-radius:var(--radius-md);margin-block:1.2rem}
+.prose blockquote{border-left:3px solid var(--color-accent);padding-left:1rem;color:color-mix(in oklab,var(--color-fg) 70%,transparent);font-style:italic;margin:1rem 0}
+{%- endstyle -%}
+
+{% schema %}
+{ "name": "Page main", "tag": "section" }
+{% endschema %}

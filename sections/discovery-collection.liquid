@@ -1,0 +1,51 @@
+<div class="container section">
+  <div class="heading-row">
+    <div>
+      <small class="eyebrow">Smart discovery</small>
+      <h2>{{ section.settings.title | default: 'Related collections' }}</h2>
+    </div>
+  </div>
+
+  <div class="discovery-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;">
+    {%- for block in section.blocks -%}
+      {%- if block.type == 'collection' -%}
+        {%- assign c = collections[block.settings.collection] -%}
+        <a href="{{ c.url | default: collections.all.url }}" class="discovery-tile" {{ block.shopify_attributes }} style="position:relative;display:block;border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;background:var(--color-surface);transition:transform .25s,border-color .25s;">
+          <div style="aspect-ratio:3/2;overflow:hidden;">
+            {%- if c.image -%}<img src="{{ c.image | image_url: width: 600 }}" alt="{{ c.title | escape }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">{%- endif -%}
+          </div>
+          <div style="padding:1rem;display:flex;justify-content:space-between;align-items:end;gap:1rem;">
+            <div>
+              <strong style="display:block;font-size:1.05rem;">{{ block.settings.title | default: c.title }}</strong>
+              {%- if c != blank -%}
+                <small style="color:var(--color-muted);">{{ c.products_count }} products</small>
+              {%- endif -%}
+            </div>
+            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-accent);"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
+          </div>
+        </a>
+      {%- endif -%}
+    {%- endfor -%}
+  </div>
+</div>
+
+{% schema %}
+{
+  "name": "Discovery collection grid",
+  "tag": "section",
+  "settings": [
+    { "type": "text", "id": "title", "default": "Related collections" }
+  ],
+  "blocks": [
+    {
+      "type": "collection",
+      "name": "Collection",
+      "settings": [
+        { "type": "text", "id": "title", "label": "Title" },
+        { "type": "collection", "id": "collection", "label": "Collection" }
+      ]
+    }
+  ],
+  "max_blocks": 8
+}
+{% endschema %}

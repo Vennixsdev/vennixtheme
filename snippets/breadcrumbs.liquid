@@ -1,0 +1,27 @@
+{%- liquid
+  if settings.show_breadcrumbs
+    assign crumb_count = 0
+-%}
+<nav class="crumbs" aria-label="Breadcrumb">
+  <ol style="display:flex;gap:.4rem;flex-wrap:wrap;">
+    <li><a href="{{ routes.root_url }}">Home</a></li>
+    {%- if template.name == 'product' -%}
+      <li><a href="{{ collections.all.url }}">Catalog</a></li>
+      {%- if product.type != blank -%}
+        <li><a href="{{ product.type | url_for_type }}">{{ product.type }}</a></li>
+      {%- endif -%}
+      <li><span aria-current="page">{{ product.title }}</span></li>
+    {%- elsif template.name == 'collection' -%}
+      <li><span aria-current="page">{{ collection.title }}</span></li>
+    {%- elsif template.name == 'cart' -%}
+      <li><span aria-current="page">Cart</span></li>
+    {%- elsif template.name == 'search' -%}
+      <li><span aria-current="page">Search</span></li>
+    {%- elsif template.name == 'page' -%}
+      <li><span aria-current="page">{{ page.title }}</span></li>
+    {%- elsif template.name == 'index' -%}
+      <li><span aria-current="page">Home</span></li>
+    {%- endif -%}
+  </ol>
+</nav>
+{%- endif -%}

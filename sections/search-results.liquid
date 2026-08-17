@@ -1,0 +1,59 @@
+<div class="container section">
+  <header class="search-page-header">
+    <small class="eyebrow">Search</small>
+    <h1 style="margin-top:.5rem;">{{ 'general.search.results' | t: terms: search.terms | default: 'Search results' }}</h1>
+    {% render 'search-form' %}
+  </header>
+
+  {%- if search.performed == false or search.terms == '' -%}
+    {%- comment -%}Pre-search state — show popular suggestions.{%- endcomment -%}
+    <div class="search-empty">
+      <strong style="display:block;margin-bottom:.4rem;color:var(--color-fg);">{{ 'general.search.popular' | t | default: 'Popular searches' }}</strong>
+      <div style="display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;margin-top:1rem;">
+        {%- for tag in collections.all.tags limit: 8 -%}
+          <a href="{{ routes.search_url }}?q={{ tag | url_encode }}" class="icon-pill">{{ tag }}</a>
+        {%- endfor -%}
+      </div>
+    </div>
+
+  {%- elsif search.results_count == 0 -%}
+    <div class="search-empty">
+      <strong style="display:block;margin-bottom:.4rem;color:var(--color-fg);">No matches</strong>
+      <p style="font-size:.9rem;">We couldn't find any products for “<strong>{{ search.terms | escape }}</strong>”.</p>
+      <a href="{{ routes.search_url }}" class="btn btn--ghost" style="margin-top:1rem;">Reset search</a>
+    </div>
+
+  {%- else -%}
+    <div class="search-page-grid">
+      {%- if search.types contains 'product' -%}
+        {%- assign have_products = false -%}
+        {%- for item in search.results -%}
+          {%- if item.object_type == 'product' -%}
+            {%- unless have_products -%}
+              <div class="collection-grid">
+            {%- endunless -%}
+            {%- assign have_products = true -%}
+            {% render 'product-card', product: item %}
+          {%- endif -%}
+        {%- endfor -%}
+        {%- if have_products -%}
+          </div>
+        {%- endif -%}
+      {%- endif -%}
+
+      {%- if search.types contains 'article' or search.types contains 'page' -%}
+        <h2 style="margin-top:2rem;">Articles &amp; Pages</h2>
+        <div class="search-results-misc">
+          {%- for item in search.results -%}
+            {%- if item.object_type == 'article' or item.object_type == 'page' -%}
+              <a href="{{ item.url }}" class="search-result-row" style="display:flex;gap:.8rem;align-items:center;padding:.9rem 1rem;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);transition:background .15s">
+                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                <div><strong style="display:block;">{{ item.title }}</strong><small style="color:var(--color-muted);">{{ item.object_type | capitalize }}</small></div>
+              </a>
+            {%- endif -%}
+          {%- endfor -%}
+        </div>
+      {%- endif -%}
+    </div>
+  {%- endif -%}
+</div>

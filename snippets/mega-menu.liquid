@@ -1,0 +1,34 @@
+<div class="mega-menu" data-mega-content role="menu" aria-label="{{ parent_title | escape }} mega menu">
+  <div class="container">
+    <div class="mega-menu-grid">
+      {%- assign col_count = 0 -%}
+      {%- for child in links -%}
+        {%- if col_count == 0 or col_count == 3 -%}
+          </div><div class="mega-menu-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
+        {%- endif -%}
+        <div class="mega-col" role="menuitem">
+          <h4>{{ child.title }}</h4>
+          {%- if child.links.size > 0 -%}
+            <ul>
+              {%- for sub in child.links -%}
+                <li><a href="{{ sub.url }}">{{ sub.title }}</a></li>
+              {%- endfor -%}
+            </ul>
+          {%- else -%}
+            <a href="{{ child.url }}">Shop {{ child.title }} →</a>
+          {%- endif -%}
+        </div>
+        {%- assign col_count = col_count | plus: 1 -%}
+      {%- endfor -%}
+    </div>
+
+    {%- if section.settings.mega_feature_title != blank -%}
+      <div class="mega-feature" style="margin-top:1rem;">
+        <div>
+          <h5>{{ section.settings.mega_feature_title }}</h5>
+          <small>{{ section.settings.mega_feature_text }}</small>
+        </div>
+      </div>
+    {%- endif -%}
+  </div>
+</div>

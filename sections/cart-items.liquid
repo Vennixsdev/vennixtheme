@@ -1,0 +1,80 @@
+<div class="container section">
+  <h1 style="margin-bottom:1.5rem;">Your cart</h1>
+
+  {%- if cart.item_count == 0 -%}
+    <div class="collection-empty">
+      <strong style="display:block;margin-bottom:.4rem;color:var(--color-fg);">Your cart is empty</strong>
+      <p style="font-size:.9rem;">Start adding products — your cart awaits.</p>
+      <a href="{{ collections.all.url }}" class="btn btn--primary" style="margin-top:1rem;">Continue shopping</a>
+    </div>
+  {%- else -%}
+    <div class="cart-page">
+      <div class="cart-lines" data-cart-lines>
+        {%- for item in cart.items -%}
+          <div class="cart-line-box" data-line-id="{{ item.key }}">
+            <div class="cart-line-media">
+              {%- if item.image -%}<img src="{{ item.image | image_url: width: 200 }}" alt="{{ item.product.title | escape }}" loading="lazy">{%- endif -%}
+            </div>
+            <div class="cart-line-info" style="flex:1;display:flex;flex-direction:column;gap:.3rem;">
+              <a href="{{ item.url }}" class="cart-line-title">{{ item.product.title }}</a>
+              {%- if item.variant.title != 'Default Title' -%}
+                <small class="cart-line-variants">{{ item.variant.title }}</small>
+              {%- endif -%}
+              <div class="cart-line-controls">
+                <div class="qty-picker" data-cart-line-id="{{ item.key }}">
+                  <button type="button" data-cart-qty="-1" aria-label="Decrease">−</button>
+                  <input type="number" min="0" value="{{ item.quantity }}" data-cart-qty-input aria-label="Quantity">
+                  <button type="button" data-cart-qty="1" aria-label="Increase">+</button>
+                </div>
+                <strong>{{ item.final_line_price | money }}</strong>
+              </div>
+              <button type="button" class="cart-line-remove" data-cart-remove>Remove</button>
+            </div>
+          </div>
+        {%- endfor -%}
+      </div>
+
+      <aside class="cart-summary">
+        {%- if settings.free_shipping_bar -%}
+          <div data-shipping-bar>
+            {%- assign threshold = settings.free_shipping_threshold | times: 100 -%}
+            {%- assign pct = cart.total_price | times: 100 | divided_by: threshold | at_most: 100 -%}
+            <div class="shipping-progress"><div class="shipping-progress-bar" style="width: {{ pct }}%;"></div></div>
+            {%- if cart.total_price >= threshold -%}
+              <p class="shipping-progress-text">🎉 You get <strong>FREE shipping</strong>!</p>
+            {%- else -%}
+              {%- assign remaining = threshold | minus: cart.total_price -%}
+              <p class="shipping-progress-text">Add <strong>{{ remaining | money }}</strong> more for free shipping · {{ settings.free_shipping_threshold | money }} threshold</p>
+            {%- endif -%}
+          </div>
+        {%- endif -%}
+
+        <div class="cart-summary-row"><span>Subtotal</span><strong>{{ cart.items_subtotal_price | money }}</strong></div>
+        <div class="cart-summary-row"><small>Shipping</small><small>Calculated at checkout</small></div>
+        {%- if cart.taxes_included -%}
+          <div class="cart-summary-row"><small>Taxes</small><small>Included</small></div>
+        {%- endif -%}
+        <div class="cart-summary-row total"><span>Total</span><span>{{ cart.total_price | money }}</span></div>
+
+        <form action="{{ routes.cart_url }}" method="post" novalidate>
+          <label class="field">
+            <span>Order note</span>
+            <textarea class="textarea" name="note" placeholder="Anything we should know?">{{ cart.note }}</textarea>
+          </label>
+          <button type="submit" name="checkout" class="btn btn--primary btn--block btn--lg">Checkout · {{ cart.total_price | money }}</button>
+        </form>
+
+        <a href="{{ collections.all.url }}" class="btn btn--text">← keep shopping</a>
+
+        {%- if settings.show_payment_icons -%}
+          <div class="footer-payment-icons" aria-label="Accepted payments">
+            {%- for type in shop.enabled_payment_types -%}
+              {{ type | payment_type_svg_tag }}
+            {%- endfor -%}
+          </div>
+        {%- endif -%}
+      </aside>
+    </div>
+  {%- endif -%}
+</div>
+{{ 'cart.js' | asset_url | script_tag: defer: true }}

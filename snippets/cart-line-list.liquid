@@ -1,0 +1,22 @@
+{%- for item in cart.items -%}
+  <div class="cart-line" data-line-id="{{ item.key }}">
+    <a href="{{ item.url }}" class="cart-line-media">
+      {%- if item.image -%}<img src="{{ item.image | image_url: width: 200 }}" alt="{{ item.product.title | escape }}" loading="lazy">{%- endif -%}
+    </a>
+    <div class="cart-line-info">
+      <a href="{{ item.url }}" class="cart-line-title">{{ item.product.title }}</a>
+      {%- if item.variant.title != 'Default Title' -%}
+        <small class="cart-line-variants">{{ item.variant.title }}</small>
+      {%- endif -%}
+      <div class="cart-line-controls">
+        <div class="qty-picker" data-cart-line-id="{{ item.key }}">
+          <button type="button" data-cart-qty="-1" aria-label="Decrease">−</button>
+          <input type="number" min="0" value="{{ item.quantity }}" data-cart-qty-input aria-label="Quantity">
+          <button type="button" data-cart-qty="1" aria-label="Increase">+</button>
+        </div>
+        <strong data-line-total>{{ item.final_line_price | money }}</strong>
+      </div>
+      <button type="button" class="cart-line-remove" data-cart-remove>Remove</button>
+    </div>
+  </div>
+{%- endfor -%}

@@ -1,0 +1,11 @@
+<article class="container section" style="max-width:780px;">
+  <small class="eyebrow">{{ blog.title }} · {{ article.published_at | date: '%b %d, %Y' }}</small>
+  <h1>{{ article.title }}</h1>
+  {%- if article.image -%}
+    <img src="{{ article.image | image_url: width: 1200 }}" alt="{{ article.title | escape }}" loading="lazy" style="margin-block:1.5rem;border-radius:var(--radius-lg);">
+  {%- endif -%}
+  <div class="prose" style="line-height:1.7;font-size:1.05rem;margin-top:1rem;">{{ article.content }}</div>
+</article>
+{% schema %}
+{ "name": "Article main", "tag": "section" }
+{% endschema %}

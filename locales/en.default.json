@@ -1,0 +1,68 @@
+{
+  "general": {
+    "currency": "$",
+    "search": {
+      "title": "Search",
+      "placeholder": "Search products, collections, articles…",
+      "submit": "Search",
+      "results": "Results for “{{ terms }}”",
+      "no_results": "No matches for “{{ terms }}”",
+      "suggestions": "Suggestions",
+      "popular": "Popular searches",
+      "view_all": "View all results"
+    },
+    "accessibility": {
+      "skip_to_text": "Skip to main content",
+      "close": "Close",
+      "menu": "Open menu",
+      "cart": "Open cart",
+      "search": "Open search"
+    }
+  },
+  "products": {
+    "product": {
+      "add_to_cart": "Add to cart",
+      "sold_out": "Sold out",
+      "unavailable": "Unavailable",
+      "quantity": "Quantity",
+      "view_details": "View details",
+      "quick_add": "Quick add",
+      "from": "From {{ price }}",
+      "save": "Save {{ amount }}",
+      "in_stock": "In stock",
+      "low_stock": "Only {{ count }} left",
+      "preorder": "Pre-order"
+    }
+  },
+  "cart": {
+    "general": {
+      "title": "Your cart",
+      "empty": "Your cart is empty",
+      "continue_shopping": "Continue shopping",
+      "subtotal": "Subtotal",
+      "note": "Order note",
+      "checkout": "Checkout",
+      "remove": "Remove",
+      "update": "Update",
+      "added": "Added — keep browsing"
+    },
+    "free_shipping": {
+      "progress_made": "Add {{ remaining }} more for FREE shipping",
+      "progress_done": "Congrats — you get FREE shipping!"
+    }
+  },
+  "sections": {
+    "header": {
+      "menu": "Menu",
+      "account": "Account"
+    },
+    "footer": {
+      "newsletter": {
+        "title": "Join the Vennix insider list",
+        "subtitle": "Members get early access, private drops, and 10% off their first order.",
+        "placeholder": "Enter your email",
+        "submit": "Subscribe"
+      }
+    }
+  }
+}
