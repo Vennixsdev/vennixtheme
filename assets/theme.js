@@ -1,353 +1,287 @@
-/* =====================================================
-   VennixStore Elite — theme.js core orchestrator
-   Hands control to subsystem modules:
-     - CartEngine (cart.js)
-     - ProductEngine (product.js)
-     - CollectionEngine
-     - SearchEngine (search.js)
-     - MenuEngine (header / mega-menu)
-     - SupportEngine
-   ===================================================== */
 (function () {
   'use strict';
 
-  const $  = (sel, el) => (el || document).querySelector(sel);
-  const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
-
-  /* ---------- Shared utilities (escaping, money, i18n, routes) ----------
-     Loaded before every other module so they can rely on window.VennixUtils.
-     ---------------------------------------------------------------------- */
-  const HTML_ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
-
-  function ctx() {
-    try { return window.App?.AppContext || VennixUtils._ctx || {}; } catch (e) { return {}; }
-  }
+  const $ = (selector, context = document) => context.querySelector(selector);
+  const $$ = (selector, context = document) => Array.from(context.querySelectorAll(selector));
+  const entities = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
 
   const VennixUtils = {
-    _ctx: {},
-    /* Escape text destined for an HTML template literal. */
-    escapeHtml(value) {
-      if (value == null) return '';
-      return String(value).replace(/[&<>"']/g, (c) => HTML_ENTITIES[c]);
-    },
-    /* Escape a value used inside a double-quoted HTML attribute. */
-    escapeAttr(value) {
-      return VennixUtils.escapeHtml(value);
-    },
-    /* Only allow same-origin / relative URLs into href="" — blocks javascript: URIs. */
+    _context: {},
+    escapeHtml(value) { return value == null ? '' : String(value).replace(/[&<>"']/g, (character) => entities[character]); },
+    escapeAttr(value) { return this.escapeHtml(value); },
     safeUrl(value) {
-      const raw = String(value == null ? '' : value).trim();
+      const raw = String(value || '').trim();
       if (!raw) return '#';
-      if (/^(?:https?:|\/(?!\/)|#|\?)/i.test(raw)) return VennixUtils.escapeAttr(raw);
-      return '#';
+      try {
+        const parsed = new URL(raw, window.location.origin);
+        if (!['http:', 'https:'].includes(parsed.protocol)) return '#';
+        return this.escapeAttr(raw);
+      } catch (_) { return '#'; }
     },
-    /* Append a query param to a URL that may or may not already have one. */
-    withParam(url, key, value) {
-      if (!url) return '';
-      const sep = url.indexOf('?') === -1 ? '?' : '&';
-      return `${url}${sep}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+    withParam(value, key, parameter) {
+      const raw = String(value || '');
+      if (!raw) return '';
+      return `${raw}${raw.includes('?') ? '&' : '?'}${encodeURIComponent(key)}=${encodeURIComponent(parameter)}`;
     },
     routes() {
-      const fromCtx = ctx().routes || {};
-      const fromShopify = (window.Shopify && window.Shopify.routes) || {};
-      const root = fromCtx.root || fromShopify.root || '/';
+      const contextRoutes = this._context.routes || {};
+      const root = contextRoutes.root || window.Shopify?.routes?.root || '/';
+      const normalizedRoot = root.endsWith('/') ? root : `${root}/`;
       return {
-        root,
-        cart:        fromCtx.cart        || fromShopify.cart_url            || `${root}cart`,
-        cartAdd:     fromCtx.cartAdd     || fromShopify.cart_add_url        || `${root}cart/add`,
-        cartChange:  fromCtx.cartChange  || fromShopify.cart_change_url     || `${root}cart/change`,
-        cartJs:      `${root}cart.js`,
-        cartAddJs:   `${root}cart/add.js`,
-        cartChangeJs:`${root}cart/change.js`,
-        search:      fromCtx.search      || fromShopify.search_url          || `${root}search`,
-        collections: fromCtx.collections || fromShopify.collections_url     || `${root}collections/all`,
-        checkout:    `${root}checkout`
+        root: normalizedRoot,
+        cart: contextRoutes.cart || `${normalizedRoot}cart`,
+        cartAdd: contextRoutes.cartAdd || `${normalizedRoot}cart/add`,
+        cartChange: contextRoutes.cartChange || `${normalizedRoot}cart/change`,
+        cartJs: `${normalizedRoot}cart.js`,
+        cartAddJs: `${normalizedRoot}cart/add.js`,
+        cartChangeJs: `${normalizedRoot}cart/change.js`,
+        search: contextRoutes.search || `${normalizedRoot}search`,
+        collections: contextRoutes.collections || `${normalizedRoot}collections`,
+        recommendations: contextRoutes.recommendations || `${normalizedRoot}recommendations/products`
       };
     },
-    /* Translated string with {{ placeholder }} / __TOKEN__ substitution. */
-    t(key, replacements) {
-      const strings = ctx().strings || {};
-      let out = strings[key];
-      if (out == null) return '';
-      Object.keys(replacements || {}).forEach((k) => {
-        out = out.split(`__${k.toUpperCase()}__`).join(replacements[k]);
-        out = out.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), replacements[k]);
+    t(key, replacements = {}) {
+      let string = this._context.strings?.[key] || '';
+      Object.entries(replacements).forEach(([name, value]) => {
+        string = string.split(`__${name.toUpperCase()}__`).join(value);
+        string = string.replace(new RegExp(`{{\\s*${name}\\s*}}`, 'g'), value);
       });
-      return out;
+      return string;
     },
     formatMoney(cents) {
-      const settings = ctx().settings || {};
-      const currency = settings.currency || ctx().shop?.currency || 'USD';
-      const locale   = settings.locale || document.documentElement.lang || 'en';
-      const amount   = (Number(cents) || 0) / 100;
-      try {
-        return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount);
-      } catch (e) {
-        try {
-          return new Intl.NumberFormat('en', { style: 'currency', currency: 'USD' }).format(amount);
-        } catch (e2) { return '$' + amount.toFixed(2); }
-      }
+      const amount = (Number(cents) || 0) / 100;
+      const currency = this._context.settings?.currency || this._context.shop?.currency || 'USD';
+      const locale = this._context.settings?.locale || document.documentElement.lang || 'en';
+      try { return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount); }
+      catch (_) { return `${amount.toFixed(2)} ${currency}`; }
     },
-    /* Free-shipping threshold in cents, sourced from theme settings. */
     freeShippingThreshold() {
-      const raw = (ctx().settings || {}).freeShippingThreshold;
-      const num = parseFloat(raw);
-      return Number.isFinite(num) && num > 0 ? Math.round(num * 100) : 0;
+      if (!this._context.settings?.freeShippingBar) return 0;
+      const amount = parseFloat(this._context.settings?.freeShippingThreshold);
+      return Number.isFinite(amount) && amount > 0 ? Math.round(amount * 100) : 0;
     }
   };
   window.VennixUtils = VennixUtils;
 
-  const App = {
-    AppContext: {},
-    modules: {},
+  window.VennixA11y = {
+    focusable(container) {
+      return $$('a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), details > summary, [tabindex]:not([tabindex="-1"])', container).filter((node) => !node.hidden && node.offsetParent !== null);
+    },
+    trap(event, container) {
+      if (event.key !== 'Tab') return;
+      const nodes = this.focusable(container);
+      if (!nodes.length) return;
+      const first = nodes[0];
+      const last = nodes[nodes.length - 1];
+      if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last.focus(); }
+      else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first.focus(); }
+    }
+  };
+
+  const MenuEngine = {
     init() {
-      this.readContext();
-      this.registerModules();
-      this.bindGlobalUI();
-      document.addEventListener('DOMContentLoaded', () => this.startModules());
-      // In case DOM is already ready
-      if (document.readyState !== 'loading') this.startModules();
-    },
-    readContext() {
-      const node = document.getElementById('ShopifyAppContext');
-      try { this.AppContext = node ? JSON.parse(node.textContent) : {}; }
-      catch (e) { this.AppContext = {}; }
-      // Mirror onto the util module so helpers work before/independently of App.
-      window.VennixUtils._ctx = this.AppContext;
-    },
-    registerModules() {
-      // Modules attach themselves to window.[name] when their scripts load.
-      // We call their `init()` if it exists.
-    },
-    startModules() {
-      if (this._started) return;
-      this._started = true;
-      const order = ['MenuEngine','CartEngine','ProductEngine','CollectionEngine','SearchEngine','SupportEngine','RevealEngine'];
-      order.forEach((name) => {
-        const mod = window[name];
-        if (mod && typeof mod.init === 'function') {
-          try { mod.init(this); } catch (err) { console.warn(`[Vennix] ${name} failed`, err); }
-        }
-      });
-      this.bindStickyHeader();
+      this.bindMegaMenus();
       this.bindMobileMenu();
     },
-    bindStickyHeader() {
-      const header = $('[data-header]');
-      if (!header) return;
-      const onScroll = () => header.classList.toggle('scrolled', window.scrollY > 12);
-      window.addEventListener('scroll', onScroll, { passive: true });
-      onScroll();
-    },
-    bindGlobalUI() { /* delegated click handlers */
-      document.addEventListener('click', (e) => {
-        const closeTarget = e.target.closest('[data-overlay-close]');
-        if (closeTarget) {
-          const overlay = closeTarget.closest('[data-overlay]');
-          if (overlay) overlay.setAttribute('aria-hidden','true');
-          document.body.style.overflow = '';
-          return;
-        }
-        // generic outside-click handler for dropdowns
-        const openDrop = document.querySelector('[data-dropdown][data-open="true"]');
-        if (openDrop && !e.target.closest('[data-dropdown]')) {
-          openDrop.setAttribute('data-open','false');
-        }
+    bindMegaMenus() {
+      $$('[data-mega]').forEach((item) => {
+        if (item.dataset.bound) return;
+        item.dataset.bound = 'true';
+        const toggle = $('[data-mega-toggle]', item);
+        const content = $('[data-mega-content]', item);
+        if (!toggle || !content) return;
+        const setOpen = (open) => {
+          item.dataset.open = String(open);
+          toggle.setAttribute('aria-expanded', String(open));
+          content.setAttribute('aria-hidden', String(!open));
+        };
+        toggle.addEventListener('click', (event) => {
+          event.preventDefault();
+          const next = item.dataset.open !== 'true';
+          $$('[data-mega][data-open="true"]').forEach((other) => {
+            if (other === item) return;
+            other.dataset.open = 'false';
+            $('[data-mega-toggle]', other)?.setAttribute('aria-expanded', 'false');
+            $('[data-mega-content]', other)?.setAttribute('aria-hidden', 'true');
+          });
+          setOpen(next);
+          if (next) requestAnimationFrame(() => $('a', content)?.focus());
+        });
+        item.addEventListener('mouseenter', () => { if (window.matchMedia('(hover:hover) and (min-width:990px)').matches) setOpen(true); });
+        item.addEventListener('mouseleave', () => { if (window.matchMedia('(hover:hover) and (min-width:990px)').matches) setOpen(false); });
+        item.addEventListener('keydown', (event) => { if (event.key === 'Escape') { setOpen(false); toggle.focus(); } });
       });
-      // sort dropdown
-      $$('.sort-dropdown').forEach((drop) => {
-        const btn = drop.querySelector('.sort-dropdown-button');
-        if (!btn) return;
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          e.stopPropagation();
-          const isOpen = drop.getAttribute('data-open') === 'true';
-          drop.setAttribute('data-open', isOpen ? 'false' : 'true');
-          btn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
+      document.addEventListener('click', (event) => {
+        if (event.target.closest('[data-mega]')) return;
+        $$('[data-mega][data-open="true"]').forEach((item) => {
+          item.dataset.open = 'false';
+          $('[data-mega-toggle]', item)?.setAttribute('aria-expanded', 'false');
+          $('[data-mega-content]', item)?.setAttribute('aria-hidden', 'true');
         });
       });
     },
     bindMobileMenu() {
-      $$('[data-mobile-trigger]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const menu = document.querySelector('[data-mobile-menu]');
-          const isOpen = menu?.getAttribute('data-open') === 'true';
-          menu?.setAttribute('data-open', isOpen ? 'false' : 'true');
-          btn.setAttribute('aria-expanded', isOpen ? 'false' : 'true');
-          document.body.style.overflow = isOpen ? '' : 'hidden';
-        });
+      const menu = $('[data-mobile-menu]');
+      const panel = $('.mobile-menu-panel', menu || document);
+      if (!menu || !panel) return;
+      const open = (opener) => {
+        this.mobileOpener = opener;
+        menu.dataset.open = 'true';
+        menu.setAttribute('aria-hidden', 'false');
+        opener?.setAttribute('aria-expanded', 'true');
+        document.body.classList.add('drawer-open');
+        requestAnimationFrame(() => panel.focus());
+      };
+      const close = () => {
+        menu.dataset.open = 'false';
+        menu.setAttribute('aria-hidden', 'true');
+        $$('[data-mobile-trigger]').forEach((button) => button.setAttribute('aria-expanded', 'false'));
+        document.body.classList.remove('drawer-open');
+        this.mobileOpener?.focus();
+      };
+      $$('[data-mobile-trigger]').forEach((button) => button.addEventListener('click', () => open(button)));
+      $$('[data-mobile-close]', menu).forEach((button) => button.addEventListener('click', close));
+      panel.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') close();
+        window.VennixA11y.trap(event, panel);
       });
-      $$('[data-mobile-close]').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const menu = document.querySelector('[data-mobile-menu]');
-          menu?.setAttribute('data-open','false');
-          document.body.style.overflow = '';
-        });
-      });
-    },
-    formatMoney(cents) {
-      return window.VennixUtils.formatMoney(cents);
-    },
-    safeJSON(input) {
-      try { return typeof input === 'string' ? JSON.parse(input) : input; } catch{ return {}; }
-    },
-    publish(name, detail, target) {
-      target = target || document;
-      target.dispatchEvent(new CustomEvent(`vxn:${name}`, { detail, bubbles: true }));
-    },
-    subscribe(name, cb, target) {
-      target = target || document;
-      target.addEventListener(`vxn:${name}`, (e) => cb(e.detail));
-    },
-  };
-
-  /* ---------- Dead placeholder engines removed ----------
-     WishlistEngine / RecentlyViewedEngine previously registered empty init()
-     stubs that shadowed nothing and did no work. wishlist.js and
-     recently-viewed.js self-initialise on DOMContentLoaded instead.
-     ------------------------------------------------------ */
-
-  /* ---------- Reveal engine ---------- */
-  window.RevealEngine = {
-    init(app) {
-      if (!('IntersectionObserver' in window)) return;
-      const io = new IntersectionObserver((entries) => {
-        entries.forEach((en) => {
-          if (en.isIntersecting) {
-            en.target.classList.add('in');
-            io.unobserve(en.target);
-          }
-        });
-      }, { rootMargin: '0px 0px -10% 0px', threshold: 0.05 });
-      $$('.reveal').forEach((el) => io.observe(el));
     }
   };
+  window.MenuEngine = MenuEngine;
 
-  /* ---------- Support engine ---------- */
-  window.SupportEngine = {
+  const CollectionEngine = {
     init() {
-      const pop = $('[data-support-pop]');
-      if (!pop) return;
-      const toggle = $('[data-support-toggle]');
-      const close  = $('[data-support-close]');
-      toggle?.addEventListener('click', () => {
-        const open = pop.getAttribute('data-open') === 'true';
-        pop.setAttribute('data-open', open ? 'false' : 'true');
-        toggle.setAttribute('aria-expanded', open ? 'false' : 'true');
-      });
-      close?.addEventListener('click', () => pop.setAttribute('data-open','false'));
-    }
-  };
-
-  /* ---------- Collection engine (filter / sort) ---------- */
-  window.CollectionEngine = {
-    init() {
-      this.bindFilterToggles();
-      this.bindFilterSubmit();
+      this.bindFilterDrawer();
       this.bindSort();
-      this.bindPriceRange();
-      this.bindMerchTabs();
-      this.bindInViewAnimations();
+      this.bindDesktopFilters();
     },
-    bindFilterToggles() {
-      $$('[data-filter-toggle]').forEach((head) => {
-        head.addEventListener('click', () => {
-          const expanded = head.getAttribute('aria-expanded') !== 'false';
-          head.setAttribute('aria-expanded', (!expanded).toString());
-          const body = head.nextElementSibling;
-          if (body?.dataset.filterBody !== undefined) {
-            body.classList.toggle('collapsed');
-          }
-        });
-      });
-    },
-    bindFilterSubmit() {
-      // Auto-submit on filter change
-      $$('[data-filter-form]').forEach((form) => {
-        let submitTimer;
-        const submit = () => {
-          clearTimeout(submitTimer);
-          submitTimer = setTimeout(() => form.submit(), 320);
+    bindFilterDrawer() {
+      $$('[data-filter-drawer]').forEach((drawer) => {
+        if (drawer.dataset.bound) return;
+        drawer.dataset.bound = 'true';
+        const panel = $('.filter-panel', drawer);
+        const opener = document.querySelector(`[data-filter-open][aria-controls="${drawer.id}"]`);
+        const setA11y = () => { if (window.innerWidth >= 990) drawer.setAttribute('aria-hidden', 'false'); else if (drawer.dataset.open !== 'true') drawer.setAttribute('aria-hidden', 'true'); };
+        const open = () => {
+          drawer.dataset.open = 'true';
+          drawer.setAttribute('aria-hidden', 'false');
+          opener?.setAttribute('aria-expanded', 'true');
+          document.body.classList.add('drawer-open');
+          requestAnimationFrame(() => panel?.focus());
         };
-        form.addEventListener('change', submit);
-        // make label-style options act like radios
-        form.querySelectorAll('.filter-option, .filter-swatch').forEach((opt) => {
-          opt.addEventListener('click', (e) => {
-            e.preventDefault();
-            const inp = opt.querySelector('input[type="checkbox"]');
-            if (!inp) return;
-            inp.checked = !inp.checked;
-            opt.setAttribute('aria-pressed', inp.checked.toString());
-            submit();
-          });
+        const close = () => {
+          drawer.dataset.open = 'false';
+          if (window.innerWidth < 990) drawer.setAttribute('aria-hidden', 'true');
+          opener?.setAttribute('aria-expanded', 'false');
+          document.body.classList.remove('drawer-open');
+          opener?.focus();
+        };
+        opener?.addEventListener('click', open);
+        $$('[data-filter-close]', drawer).forEach((button) => button.addEventListener('click', close));
+        panel?.addEventListener('keydown', (event) => {
+          if (event.key === 'Escape') close();
+          window.VennixA11y.trap(event, panel);
         });
+        window.addEventListener('resize', setA11y, { passive: true });
+        setA11y();
       });
     },
     bindSort() {
-      $$('.sort-dropdown .sort-option').forEach((opt) => {
-        opt.addEventListener('click', () => {
-          const v = opt.dataset.sortValue;
+      $$('[data-sort-select]').forEach((select) => {
+        if (select.dataset.bound) return;
+        select.dataset.bound = 'true';
+        select.addEventListener('change', () => {
           const url = new URL(window.location.href);
-          url.searchParams.set('sort_by', v);
-          window.location.href = url.toString();
+          url.searchParams.set('sort_by', select.value);
+          url.searchParams.delete('page');
+          window.location.assign(url.toString());
         });
       });
     },
-    bindPriceRange() {
-      $$('.filter-price[data-price-range]').forEach((wrap) => {
-        const min = parseInt(wrap.dataset.min, 10) || 0;
-        const max = parseInt(wrap.dataset.max, 10) || 1000;
-        const minIn = wrap.querySelector('[name="filter.v.price.gte"]');
-        const maxIn = wrap.querySelector('[name="filter.v.price.lte"]');
-        const fill = wrap.querySelector('[data-track-fill]');
-        const minR  = wrap.querySelector('[data-range-min]');
-        const maxR  = wrap.querySelector('[data-range-max]');
-        if (!minIn && !maxIn && !minR && !maxR) return;
-        const sync = () => {
-          const lo = parseInt((minIn && minIn.value) || (minR && minR.value), 10) || min;
-          const hi = parseInt((maxIn && maxIn.value) || (maxR && maxR.value), 10) || max;
-          if (minR) minR.value = lo;
-          if (maxR) maxR.value = hi;
-          if (fill) {
-            const lp = ((lo - min) / (max - min) * 100);
-            const hp = ((hi - min) / (max - min) * 100);
-            fill.style.left  = lp + '%';
-            fill.style.right = (100 - hp) + '%';
-          }
-        };
-        [minR, maxR, minIn, maxIn].forEach((el) => el && el.addEventListener('input', sync));
-        sync();
-      });
-    },
-    bindMerchTabs() {
-      // home page tabs swap collections
-      $$('[data-merch-tabs]').forEach((tabs) => {
-        tabs.addEventListener('click', (e) => {
-          const btn = e.target.closest('[data-merch-trigger]');
-          if (!btn) return;
-          tabs.querySelectorAll('[data-merch-trigger]').forEach((b) => b.setAttribute('aria-current','false'));
-          btn.setAttribute('aria-current','true');
-          window.location.hash = '#' + btn.dataset.merchTrigger;
+    bindDesktopFilters() {
+      $$('[data-filter-form]').forEach((form) => {
+        if (form.dataset.bound) return;
+        form.dataset.bound = 'true';
+        form.addEventListener('change', () => {
+          if (window.innerWidth >= 990) form.requestSubmit();
         });
       });
-    },
-    bindInViewAnimations() {
-      if (!('IntersectionObserver' in window)) return;
-      const io = new IntersectionObserver((entries) => {
-        entries.forEach((en, i) => {
-          if (en.isIntersecting) {
-            setTimeout(() => en.target.classList.add('in'), i * 50);
-            io.unobserve(en.target);
-          }
+    }
+  };
+  window.CollectionEngine = CollectionEngine;
+
+  const SupportEngine = {
+    init() {
+      $$('[data-support-pop]').forEach((widget) => {
+        const toggle = $('[data-support-toggle]', widget);
+        const panel = $('[data-support-card]', widget);
+        const close = () => { widget.dataset.open = 'false'; toggle?.setAttribute('aria-expanded', 'false'); };
+        toggle?.addEventListener('click', () => {
+          const open = widget.dataset.open !== 'true';
+          widget.dataset.open = String(open);
+          toggle.setAttribute('aria-expanded', String(open));
+          if (open) panel?.focus();
         });
-      }, { rootMargin: '0px 0px -10% 0px', threshold: 0.05 });
-      $$('.product-card.reveal, .collection-toolbar, .heading-row').forEach((el) => io.observe(el));
+        $('[data-support-close]', widget)?.addEventListener('click', close);
+        widget.addEventListener('keydown', (event) => { if (event.key === 'Escape') { close(); toggle?.focus(); } });
+      });
+    }
+  };
+  window.SupportEngine = SupportEngine;
+
+  const RevealEngine = {
+    init() {
+      const nodes = $$('.reveal:not(.is-visible)');
+      if (!('IntersectionObserver' in window)) { nodes.forEach((node) => node.classList.add('is-visible')); return; }
+      const observer = new IntersectionObserver((entries) => entries.forEach((entry) => {
+        if (!entry.isIntersecting) return;
+        entry.target.classList.add('is-visible');
+        observer.unobserve(entry.target);
+      }), { rootMargin: '0px 0px -40px', threshold: 0.01 });
+      nodes.forEach((node) => observer.observe(node));
+    }
+  };
+  window.RevealEngine = RevealEngine;
+
+  const App = {
+    AppContext: {},
+    started: false,
+    init() {
+      try { this.AppContext = JSON.parse($('#ShopifyAppContext')?.textContent || '{}'); }
+      catch (_) { this.AppContext = {}; }
+      VennixUtils._context = this.AppContext;
+      if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', () => this.start(), { once: true });
+      else this.start();
+    },
+    start() {
+      if (this.started) return;
+      this.started = true;
+      ['MenuEngine', 'CartEngine', 'ProductEngine', 'CollectionEngine', 'SearchEngine', 'SupportEngine', 'RevealEngine'].forEach((name) => {
+        try { window[name]?.init?.(this); } catch (error) { console.warn(`[VennixStore] ${name}`, error); }
+      });
+      this.bindHeader();
+      this.bindAnnouncements();
+      document.addEventListener('vxn:content:loaded', () => window.RevealEngine?.init());
+    },
+    bindHeader() {
+      const header = $('[data-header]');
+      if (!header) return;
+      const update = () => header.classList.toggle('is-scrolled', window.scrollY > 8);
+      window.addEventListener('scroll', update, { passive: true });
+      update();
+    },
+    bindAnnouncements() {
+      $$('[data-announcement]').forEach((announcement) => {
+        const key = `vennix-announcement-${announcement.dataset.announcementId}`;
+        try { if (window.localStorage.getItem(key) === 'dismissed') announcement.hidden = true; } catch (_) {}
+        $('[data-announcement-close]', announcement)?.addEventListener('click', () => {
+          announcement.hidden = true;
+          try { window.localStorage.setItem(key, 'dismissed'); } catch (_) {}
+        });
+      });
     }
   };
 
   window.App = App;
   App.init();
-
-  // ----- Boot signal so lazy modules can register -----
-  window.dispatchEvent(new CustomEvent('vxn:boot'));
 })();

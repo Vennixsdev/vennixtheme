@@ -1,197 +1,184 @@
-/* ============================================================
-   VennixStore Elite — Product engine
-   - variant selection  → updates hidden id + visible price
-   - quantity stepper   → +/- controls
-   - gallery            → thumb switching
-   - sticky add-to-cart  → mirrors top form on scroll
-   - accordion expand
-   - buy now
-   ============================================================ */
 (function () {
   'use strict';
-  const $  = (s, c) => (c||document).querySelector(s);
-  const $$ = (s, c) => Array.from((c||document).querySelectorAll(s));
 
-  const U = () => window.VennixUtils;
-  const esc = (v) => window.VennixUtils.escapeHtml(v);
-  const formatMoney = (cents) => window.VennixUtils.formatMoney(cents);
+  const $ = (selector, context = document) => context.querySelector(selector);
+  const $$ = (selector, context = document) => Array.from(context.querySelectorAll(selector));
 
-  window.ProductEngine = {
-    init(app) {
-      this.bindGallery();
-      this.bindVariants();
-      this.bindQty();
-      this.bindStickyATC();
-      this.bindAccordion();
-      this.bindBuyNow();
-      this.bindShare();
+  function utils() { return window.VennixUtils; }
+
+  const ProductEngine = {
+    init() {
+      $$('[data-product-root]').forEach((root) => this.initProduct(root));
     },
-    currentVariant() {
-      const form = $('[data-product-form]');
-      if (!form) return null;
-      const field = form.querySelector('[data-variant-id]');
-      if (!field) return null;
-      const id = field.value;
-      return (window.__VARIANTS__ || []).find((v) => String(v.id) === String(id)) || null;
+
+    initProduct(root) {
+      if (root.dataset.productBound === 'true') return;
+      root.dataset.productBound = 'true';
+      const variantsNode = document.getElementById(root.dataset.variantsId);
+      try { root._variants = JSON.parse(variantsNode?.textContent || '[]'); }
+      catch (_) { root._variants = []; }
+
+      this.bindGallery(root);
+      this.bindVariants(root);
+      this.bindQuantity(root);
+      this.bindSticky(root);
+      this.bindZoom(root);
+      this.bindShare(root);
+      this.syncVariant(root, false);
     },
-    bindGallery() {
-      $$('[data-media-trigger]').forEach((thumb) => {
-        thumb.addEventListener('click', () => {
-          const id = thumb.dataset.mediaTrigger;
-          $$('[data-media-trigger]').forEach((t) => t.setAttribute('aria-current','false'));
-          thumb.setAttribute('aria-current','true');
-          const comp = document.querySelector(`[data-media-id="${id}"]`);
-          const display = $('[data-gallery-main]');
-          if (comp && display) {
-            display.innerHTML = '';
-            const node = comp.cloneNode(true);
-            node.removeAttribute('hidden');
-            display.appendChild(node);
-          }
+
+    bindGallery(root) {
+      $$('[data-media-trigger]', root).forEach((trigger) => {
+        trigger.addEventListener('click', () => this.showMedia(root, trigger.dataset.mediaTrigger));
+      });
+    },
+
+    showMedia(root, mediaId) {
+      $$('[data-media-item]', root).forEach((item) => {
+        const active = String(item.dataset.mediaItem) === String(mediaId);
+        item.hidden = !active;
+        if (!active) {
+          $('video', item)?.pause();
+          const model = $('model-viewer', item);
+          if (model?.pause) model.pause();
+        }
+      });
+      $$('[data-media-trigger]', root).forEach((trigger) => {
+        if (String(trigger.dataset.mediaTrigger) === String(mediaId)) trigger.setAttribute('aria-current', 'true');
+        else trigger.removeAttribute('aria-current');
+      });
+      const activeThumb = $(`[data-media-trigger="${CSS.escape(String(mediaId))}"]`, root);
+      activeThumb?.scrollIntoView({ behavior: 'smooth', block: 'nearest', inline: 'center' });
+    },
+
+    bindVariants(root) {
+      $$('[data-option-input]', root).forEach((input) => {
+        input.addEventListener('change', () => {
+          const fieldset = input.closest('[data-option-index]');
+          const selected = $('[data-selected-option]', fieldset);
+          if (selected) selected.textContent = input.value;
+          this.syncVariant(root, true);
         });
       });
-      const first = document.querySelector('[data-media-trigger]');
-      first?.click();
     },
-    bindVariants() {
-      $$('.variant-option,.variant-swatch').forEach((btn) => {
-        btn.addEventListener('click', () => {
-          const group = btn.closest('[data-option-index]');
-          if (!group) return;
-          $$('[data-option-value]', group).forEach((b) => {
-            b.setAttribute('aria-pressed','false');
-            b.setAttribute('aria-checked','false');
-          });
-          btn.setAttribute('aria-pressed','true');
-          btn.setAttribute('aria-checked','true');
-          const selectedLabel = group.querySelector('[data-selected-option]');
-          if (selectedLabel) selectedLabel.textContent = btn.dataset.optionValue;
-          this.syncVariantFromOptions();
-        });
-      });
-    },
-    syncVariantFromOptions() {
-      const opts = $$('[data-option-index]').map((g) => {
-        const pressed = g.querySelector('[data-option-value][aria-pressed="true"]');
-        return pressed?.dataset.optionValue;
-      });
-      const list = window.__VARIANTS__ || [];
-      const variant = list.find((v) => v.options.every((o, i) => opts[i] === o)) || list[0];
-      const form = $('[data-product-form]');
-      if (form && variant) {
-        const field = form.querySelector('[data-variant-id]');
-        if (field) field.value = variant.id;
+
+    syncVariant(root, updateUrl) {
+      const selections = $$('[data-option-index]', root).map((group) => $('[data-option-input]:checked', group)?.value);
+      const variants = root._variants || [];
+      let variant = variants.find((item) => item.options.every((option, index) => option === selections[index]));
+      if (!selections.length) variant = variants[0];
+
+      const idInput = $('[data-variant-id]', root);
+      const submit = $('[data-add-to-cart]', root);
+      const availability = $('[data-product-availability]', root);
+      const price = $('[data-product-price]', root);
+      const sku = $('[data-product-sku]', root);
+      const stickyButton = $('[data-sticky-add]');
+      const stickyPrice = $('[data-sticky-price]');
+      const dynamicCheckout = $('.dynamic-checkout', root);
+
+      if (!variant) {
+        if (submit) { submit.disabled = true; submit.textContent = utils().t('unavailable') || 'Unavailable'; }
+        if (availability) { availability.textContent = utils().t('unavailable') || 'Unavailable'; availability.classList.add('is-unavailable'); }
+        if (stickyButton) stickyButton.disabled = true;
+        return;
       }
 
-      // update price + button label + image
-      if (variant) {
-        const priceEl = $('.product-info-price .price');
-        if (priceEl) priceEl.outerHTML = this.renderPrice(variant);
-        const button = $('[data-add-to-cart]');
-        if (button) {
-          button.disabled = !variant.available;
-          button.textContent = variant.available
-            ? (U().t('addToCart') || 'Add to cart')
-            : (U().t('soldOut') || 'Sold out');
-        }
-        // preview_image is an object ({ src, width, height }), not a string —
-        // string-concatenating it produced "[object Object]&width=1200".
-        const preview = variant.featured_media?.preview_image;
-        const src = typeof preview === 'string' ? preview : preview?.src;
-        if (src) {
-          const main = $('[data-gallery-main] img');
-          if (main) main.src = U().withParam(src, 'width', 1200);
-        }
+      if (idInput) {
+        idInput.value = variant.id;
+        idInput.dispatchEvent(new Event('change', { bubbles: true }));
+      }
+      if (price) price.innerHTML = this.priceMarkup(variant);
+      if (stickyPrice) stickyPrice.textContent = utils().formatMoney(variant.price);
+      if (submit) {
+        submit.disabled = !variant.available;
+        submit.textContent = variant.available ? (utils().t('addToCart') || 'Add to cart') : (utils().t('soldOut') || 'Sold out');
+      }
+      if (stickyButton) {
+        stickyButton.disabled = !variant.available;
+        stickyButton.textContent = variant.available ? (utils().t('addToCart') || 'Add to cart') : (utils().t('soldOut') || 'Sold out');
+      }
+      if (availability) {
+        availability.textContent = variant.available ? 'In stock' : (utils().t('soldOut') || 'Sold out');
+        availability.classList.toggle('is-unavailable', !variant.available);
+      }
+      if (dynamicCheckout) dynamicCheckout.hidden = !variant.available;
+      if (sku) {
+        sku.hidden = !variant.sku;
+        const value = $('span', sku);
+        if (value) value.textContent = variant.sku || '';
+      }
+      if (variant.featured_media_id) this.showMedia(root, variant.featured_media_id);
+      if (updateUrl && window.history?.replaceState) {
+        const url = new URL(window.location.href);
+        url.searchParams.set('variant', variant.id);
+        window.history.replaceState({}, '', url.toString());
       }
     },
-    renderPrice(variant) {
-      const sale = variant.compare_at_price != null && variant.compare_at_price > variant.price;
-      const html = `
-        <span class="price" data-price>
-          ${sale
-            ? `<span class="price-current price-current--sale">${esc(formatMoney(variant.price))}</span>
-               <span class="price-compare">${esc(formatMoney(variant.compare_at_price))}</span>
-               <span class="badge badge--sale">Save ${esc(formatMoney(variant.compare_at_price - variant.price))}</span>`
-            : `<span class="price-current">${esc(formatMoney(variant.price))}</span>`}
-        </span>`;
-      return html.trim();
+
+    priceMarkup(variant) {
+      const onSale = variant.compare_at_price && variant.compare_at_price > variant.price;
+      return `<div class="price" data-price><div class="price-main"><span class="price-current${onSale ? ' price-current--sale' : ''}">${utils().escapeHtml(utils().formatMoney(variant.price))}</span>${onSale ? `<s class="price-compare">${utils().escapeHtml(utils().formatMoney(variant.compare_at_price))}</s>` : ''}</div></div>`;
     },
-    bindQty() {
-      $$('.qty-picker [data-qty]').forEach((b) => {
-        b.addEventListener('click', () => {
-          const input = b.parentElement?.querySelector('[data-qty-input]');
+
+    bindQuantity(root) {
+      $$('[data-qty]', root).forEach((button) => {
+        button.addEventListener('click', () => {
+          const picker = button.closest('.quantity-picker');
+          const input = $('[data-qty-input]', picker);
           if (!input) return;
-          const delta = parseInt(b.dataset.qty, 10) || 0;
-          const min = parseInt(input.min, 10) || 1;
-          const next = Math.max(min, (parseInt(input.value, 10) || min) + delta);
-          input.value = next;
+          const minimum = parseInt(input.min, 10) || 1;
+          input.value = Math.max(minimum, (parseInt(input.value, 10) || minimum) + parseInt(button.dataset.qty, 10));
+          input.dispatchEvent(new Event('change', { bubbles: true }));
         });
       });
     },
-    bindStickyATC() {
-      const sticky = $('[data-sticky-atc]');
-      const top = $('[data-product-form] [data-add-to-cart]');
-      if (!sticky || !top) return;
-      const io = new IntersectionObserver(([entry]) => {
-        sticky.setAttribute('data-sticky-shown', (!entry.isIntersecting).toString());
-      }, { rootMargin: '-80px 0px 0px 0px', threshold: 0 });
-      io.observe(top);
-      sticky.querySelector('[data-sticky-add]')?.addEventListener('click', () => {
-        top.click();
-      });
-    },
-    bindAccordion() {
-      $$('[data-accordion-toggle]').forEach((head) => {
-        head.addEventListener('click', () => {
-          const row = head.closest('.accordion-row');
-          if (!row) return;
-          const open = row.getAttribute('data-open') === 'true';
-          row.setAttribute('data-open', (!open).toString());
-        });
-      });
-    },
-    bindBuyNow() {
-      $$('[data-buy-now]').forEach((b) => {
-        b.addEventListener('click', async (e) => {
-          e.preventDefault();
-          const form = $('[data-product-form]');
-          if (!form) return;
-          const fd = new FormData(form);
-          try {
-            b.disabled = true;
-            // `window.Shopify?.routes?.root + '...'` yielded "undefinedcart/add.js"
-            // whenever the Shopify global was absent.
-            const r = await fetch(U().routes().cartAddJs, {
-              method: 'POST',
-              credentials: 'same-origin',
-              headers: { 'X-Requested-With':'XMLHttpRequest' },
-              body: fd
-            });
-            if (!r.ok) throw new Error('Add failed');
-            window.location.href = U().routes().checkout;
-          } catch (err) {
-            console.warn(err);
-            b.disabled = false;
-          }
-        });
-      });
-    },
-    bindShare() {
-      $$('[data-share-trigger]').forEach((btn) => {
-        btn.addEventListener('click', async () => {
-          const data = { title: document.title, url: location.href };
-          if (navigator.share) try { await navigator.share(data); return; } catch{}
-          try { await navigator.clipboard.writeText(location.href); btn.classList.add('copied'); } catch{}
-        });
-      });
-    },
-  };
-})();
 
-// inject product variants for offline use without metafields
-(function () {
-  const node = document.getElementById('VennixVariants');
-  if (!node) return;
-  try { window.__VARIANTS__ = JSON.parse(node.textContent); }
-  catch (e) { window.__VARIANTS__ = []; }
+    bindSticky(root) {
+      const sticky = $('[data-sticky-atc]');
+      const submit = $('[data-add-to-cart]', root);
+      if (!sticky || !submit) return;
+      if ('IntersectionObserver' in window) {
+        const observer = new IntersectionObserver(([entry]) => {
+          const visible = !entry.isIntersecting && entry.boundingClientRect.top < 0;
+          sticky.classList.toggle('is-visible', visible);
+          sticky.setAttribute('aria-hidden', String(!visible));
+        }, { rootMargin: '-80px 0px 0px', threshold: 0 });
+        observer.observe(submit);
+      }
+      $('[data-sticky-add]', sticky)?.addEventListener('click', () => {
+        const form = $('[data-product-form]', root);
+        if (form?.requestSubmit) form.requestSubmit(submit);
+        else submit.click();
+      });
+    },
+
+    bindZoom(root) {
+      const dialog = $('[data-media-zoom]');
+      const image = $('[data-zoom-image]', dialog || document);
+      $$('[data-zoom-open]', root).forEach((button) => button.addEventListener('click', () => {
+        if (!dialog || !image) return;
+        image.src = button.dataset.zoomSrc;
+        image.alt = button.dataset.zoomAlt || '';
+        if (dialog.showModal) dialog.showModal();
+      }));
+      $('[data-zoom-close]', dialog || document)?.addEventListener('click', () => dialog.close());
+      dialog?.addEventListener('click', (event) => { if (event.target === dialog) dialog.close(); });
+    },
+
+    bindShare(root) {
+      $('[data-share-trigger]', root)?.addEventListener('click', async (event) => {
+        const data = { title: document.title, url: window.location.href };
+        try {
+          if (navigator.share) await navigator.share(data);
+          else {
+            await navigator.clipboard.writeText(data.url);
+            event.currentTarget.textContent = 'Link copied';
+          }
+        } catch (_) { /* Sharing was cancelled or unavailable. */ }
+      });
+    }
+  };
+
+  window.ProductEngine = ProductEngine;
 })();

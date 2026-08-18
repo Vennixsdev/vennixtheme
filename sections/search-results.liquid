@@ -1,59 +1,101 @@
-<div class="container section">
-  <header class="search-page-header">
-    <small class="eyebrow">Search</small>
-    <h1 style="margin-top:.5rem;">{{ 'general.search.results' | t: terms: search.terms | default: 'Search results' }}</h1>
+<div class="container search-page section-space">
+  {% render 'breadcrumbs' %}
+  <header class="search-header">
+    <p class="eyebrow">{{ 'general.search.title' | t }}</p>
+    {%- if search.performed -%}
+      <h1>{{ 'general.search.results' | t: terms: search.terms }}</h1>
+      <p>{{ search.results_count }} {{ search.results_count | pluralize: 'result', 'results' }}</p>
+    {%- else -%}
+      <h1>{{ section.settings.heading }}</h1>
+    {%- endif -%}
     {% render 'search-form' %}
   </header>
 
-  {%- if search.performed == false or search.terms == '' -%}
-    {%- comment -%}Pre-search state — show popular suggestions.{%- endcomment -%}
-    <div class="search-empty">
-      <strong style="display:block;margin-bottom:.4rem;color:var(--color-fg);">{{ 'general.search.popular' | t | default: 'Popular searches' }}</strong>
-      <div style="display:flex;flex-wrap:wrap;gap:.5rem;justify-content:center;margin-top:1rem;">
-        {%- for tag in collections.all.tags limit: 8 -%}
-          <a href="{{ routes.search_url }}?q={{ tag | url_encode }}" class="icon-pill">{{ tag }}</a>
-        {%- endfor -%}
-      </div>
-    </div>
-
-  {%- elsif search.results_count == 0 -%}
-    <div class="search-empty">
-      <strong style="display:block;margin-bottom:.4rem;color:var(--color-fg);">No matches</strong>
-      <p style="font-size:.9rem;">We couldn't find any products for “<strong>{{ search.terms | escape }}</strong>”.</p>
-      <a href="{{ routes.search_url }}" class="btn btn--ghost" style="margin-top:1rem;">Reset search</a>
-    </div>
-
-  {%- else -%}
-    <div class="search-page-grid">
-      {%- if search.types contains 'product' -%}
-        {%- assign have_products = false -%}
-        {%- for item in search.results -%}
-          {%- if item.object_type == 'product' -%}
-            {%- unless have_products -%}
-              <div class="collection-grid">
-            {%- endunless -%}
-            {%- assign have_products = true -%}
-            {% render 'product-card', product: item %}
+  {%- if search.performed -%}
+    {%- paginate search.results by section.settings.results_per_page -%}
+      {%- if search.results_count == 0 -%}
+        <div class="empty-state">
+          <h2>{{ 'general.search.no_results' | t }}</h2>
+          <p>Try a different search term.</p>
+          {%- assign suggestion_menu = settings.search_suggestions_menu -%}
+          {%- if suggestion_menu != blank -%}
+            <nav class="empty-state-links" aria-label="{{ 'general.search.browse' | t }}">
+              {%- for link in suggestion_menu.links -%}<a class="button button--secondary" href="{{ link.url }}">{{ link.title }}</a>{%- endfor -%}
+            </nav>
+          {%- else -%}
+            <a class="button button--secondary" href="{{ routes.collections_url }}">{{ 'general.search.browse' | t }}</a>
           {%- endif -%}
-        {%- endfor -%}
-        {%- if have_products -%}
-          </div>
-        {%- endif -%}
-      {%- endif -%}
-
-      {%- if search.types contains 'article' or search.types contains 'page' -%}
-        <h2 style="margin-top:2rem;">Articles &amp; Pages</h2>
-        <div class="search-results-misc">
-          {%- for item in search.results -%}
-            {%- if item.object_type == 'article' or item.object_type == 'page' -%}
-              <a href="{{ item.url }}" class="search-result-row" style="display:flex;gap:.8rem;align-items:center;padding:.9rem 1rem;background:var(--color-surface);border:1px solid var(--color-border);border-radius:var(--radius-md);transition:background .15s">
-                <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                <div><strong style="display:block;">{{ item.title }}</strong><small style="color:var(--color-muted);">{{ item.object_type | capitalize }}</small></div>
-              </a>
-            {%- endif -%}
-          {%- endfor -%}
         </div>
+      {%- else -%}
+        {%- assign product_result_count = 0 -%}
+        {%- for item in search.results -%}{%- if item.object_type == 'product' -%}{%- assign product_result_count = product_result_count | plus: 1 -%}{%- endif -%}{%- endfor -%}
+        {%- if product_result_count > 0 -%}
+          <section class="search-result-group" aria-labelledby="SearchProducts-{{ section.id }}">
+            <h2 id="SearchProducts-{{ section.id }}">Products</h2>
+            <div class="product-grid product-grid--{{ section.settings.columns_desktop }}" style="--mobile-columns:{{ section.settings.columns_mobile }}">
+              {%- for item in search.results -%}{%- if item.object_type == 'product' -%}{% render 'product-card', product: item, loading: 'lazy' %}{%- endif -%}{%- endfor -%}
+            </div>
+          </section>
+        {%- endif -%}
+
+        {%- assign collection_result_count = 0 -%}
+        {%- for item in search.results -%}{%- if item.object_type == 'collection' -%}{%- assign collection_result_count = collection_result_count | plus: 1 -%}{%- endif -%}{%- endfor -%}
+        {%- if collection_result_count > 0 -%}
+          <section class="search-result-group" aria-labelledby="SearchCollections-{{ section.id }}">
+            <h2 id="SearchCollections-{{ section.id }}">Collections</h2>
+            <div class="search-collection-grid">
+              {%- for item in search.results -%}
+                {%- if item.object_type == 'collection' -%}
+                  {%- assign result_image = item.image | default: item.products.first.featured_image -%}
+                  <a class="search-collection-card" href="{{ item.url }}">
+                    {%- if result_image != blank -%}{{ result_image | image_url: width: 600 | image_tag: widths: '240, 360, 480, 600', sizes: '(max-width: 749px) 50vw, 25vw', loading: 'lazy', alt: item.title }}{%- endif -%}
+                    <strong>{{ item.title }}</strong>
+                  </a>
+                {%- endif -%}
+              {%- endfor -%}
+            </div>
+          </section>
+        {%- endif -%}
+
+        {%- assign content_result_count = search.results_count | minus: product_result_count | minus: collection_result_count -%}
+        {%- if content_result_count > 0 -%}
+          <section class="search-result-group" aria-labelledby="SearchContent-{{ section.id }}">
+            <h2 id="SearchContent-{{ section.id }}">Pages & articles</h2>
+            <div class="search-content-list">
+              {%- for item in search.results -%}
+                {%- if item.object_type == 'page' or item.object_type == 'article' -%}
+                  <a href="{{ item.url }}"><span>{{ item.object_type | capitalize }}</span><strong>{{ item.title }}</strong>{%- if item.content != blank -%}<p>{{ item.content | strip_html | truncatewords: 24 }}</p>{%- endif -%}</a>
+                {%- endif -%}
+              {%- endfor -%}
+            </div>
+          </section>
+        {%- endif -%}
+
+        {%- if paginate.pages > 1 -%}<nav class="pagination" aria-label="Search pagination">{{ paginate | default_pagination }}</nav>{%- endif -%}
       {%- endif -%}
-    </div>
+    {%- endpaginate -%}
+  {%- else -%}
+    {%- assign suggestion_menu = settings.search_suggestions_menu -%}
+    {%- if suggestion_menu != blank -%}
+      <nav class="search-browse" aria-label="{{ 'general.search.browse' | t }}">
+        <h2>{{ 'general.search.browse' | t }}</h2>
+        <div>{%- for link in suggestion_menu.links -%}<a class="button button--secondary" href="{{ link.url }}">{{ link.title }}</a>{%- endfor -%}</div>
+      </nav>
+    {%- endif -%}
   {%- endif -%}
 </div>
+
+{% schema %}
+{
+  "name": "Search results",
+  "tag": "section",
+  "settings": [
+    { "type": "text", "id": "heading", "label": "Heading", "default": "What are you looking for?" },
+    { "type": "checkbox", "id": "include_pages", "label": "Include pages", "default": true },
+    { "type": "checkbox", "id": "include_articles", "label": "Include articles", "default": true },
+    { "type": "range", "id": "results_per_page", "min": 12, "max": 48, "step": 4, "label": "Results per page", "default": 24 },
+    { "type": "select", "id": "columns_desktop", "label": "Desktop product columns", "default": "4", "options": [{ "value": "3", "label": "3" }, { "value": "4", "label": "4" }, { "value": "5", "label": "5" }] },
+    { "type": "select", "id": "columns_mobile", "label": "Mobile product columns", "default": "2", "options": [{ "value": "1", "label": "1" }, { "value": "2", "label": "2" }] }
+  ]
+}
+{% endschema %}

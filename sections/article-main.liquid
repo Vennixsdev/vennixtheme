@@ -1,11 +1,13 @@
-<article class="container section" style="max-width:780px;">
-  <small class="eyebrow">{{ blog.title }} · {{ article.published_at | date: '%b %d, %Y' }}</small>
-  <h1>{{ article.title }}</h1>
-  {%- if article.image -%}
-    <img src="{{ article.image | image_url: width: 1200 }}" alt="{{ article.title | escape }}" loading="lazy" style="margin-block:1.5rem;border-radius:var(--radius-lg);">
-  {%- endif -%}
-  <div class="prose" style="line-height:1.7;font-size:1.05rem;margin-top:1rem;">{{ article.content }}</div>
+<article class="container article section-space">
+  {% render 'breadcrumbs' %}
+  <header class="article-header">
+    <p class="article-meta"><a href="{{ blog.url }}">{{ blog.title }}</a> · <time datetime="{{ article.published_at | date: '%Y-%m-%d' }}">{{ article.published_at | date: '%B %d, %Y' }}</time></p>
+    <h1>{{ article.title }}</h1>
+  </header>
+  {%- if article.image != blank -%}{{ article.image | image_url: width: 1800 | image_tag: widths: '600, 900, 1200, 1500, 1800', sizes: '(max-width: 900px) 100vw, 880px', class: 'article-image', loading: 'eager', fetchpriority: 'high', alt: article.title }}{%- endif -%}
+  <div class="prose">{{ article.content }}</div>
 </article>
+
 {% schema %}
-{ "name": "Article main", "tag": "section" }
+{ "name": "Article", "tag": "section" }
 {% endschema %}

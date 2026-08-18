@@ -1,22 +1,32 @@
-<div class="predictive-search-panel" data-overlay role="dialog" aria-label="Predictive search" tabindex="-1">
-  <div class="predictive-search-input">
-    <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-    <input type="search" placeholder="{{ 'general.search.placeholder' | t }}" data-predictive-input autocomplete="off">
-    <button type="button" class="overlay-close" data-search-close aria-label="Close search">×</button>
-  </div>
-  <div class="predictive-search-body" data-predictive-body>
-    <div class="predictive-search-section">
-      <h4>Trending</h4>
-      {%- assign trending = 'Hoodies,Sneakers,Outerwear,Sale' | split: ',' -%}
-      <div style="padding:0 .8rem;display:flex;gap:.4rem;flex-wrap:wrap;">
-        {%- for t in trending -%}
-          <a class="icon-pill" href="{{ routes.search_url }}?q={{ t | url_encode }}">{{ t }}</a>
-        {%- endfor -%}
+<div class="predictive-search-dialog" data-predictive-dialog role="dialog" aria-modal="true" aria-labelledby="PredictiveSearchTitle" tabindex="-1">
+  <h2 class="visually-hidden" id="PredictiveSearchTitle">{{ 'general.search.title' | t }}</h2>
+  <form class="predictive-search-form" action="{{ routes.search_url }}" method="get" role="search">
+    <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><circle cx="11" cy="11" r="7.5"/><path d="m16.5 16.5 4 4"/></svg>
+    <label class="visually-hidden" for="PredictiveSearchInput">{{ 'general.search.title' | t }}</label>
+    <input id="PredictiveSearchInput" type="search" name="q" placeholder="{{ 'general.search.placeholder' | t }}" autocomplete="off" role="combobox" aria-autocomplete="list" aria-expanded="false" aria-controls="PredictiveSearchResults" data-predictive-input>
+    <input type="hidden" name="options[prefix]" value="last">
+    <button type="submit" class="visually-hidden">{{ 'general.search.submit' | t }}</button>
+    <button type="button" class="icon-button" data-search-close aria-label="{{ 'general.accessibility.close' | t }}">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg>
+    </button>
+  </form>
+
+  <div class="predictive-search-results" id="PredictiveSearchResults" data-predictive-body role="listbox" aria-live="polite">
+    {%- assign suggestion_menu = settings.search_suggestions_menu -%}
+    {%- if suggestion_menu != blank -%}
+      <div class="predictive-group predictive-browse">
+        <h3>{{ 'general.search.browse' | t }}</h3>
+        <ul role="list">
+          {%- for link in suggestion_menu.links -%}<li><a href="{{ link.url }}">{{ link.title }}</a></li>{%- endfor -%}
+        </ul>
       </div>
-    </div>
+    {%- else -%}
+      <p class="predictive-hint">Start typing to search the store.</p>
+    {%- endif -%}
   </div>
+
   <div class="predictive-search-footer">
-    <small>Type to search · press ESC to close</small>
-    <a href="{{ routes.search_url }}">View all →</a>
+    <span>Use ↑ and ↓ to navigate. Press Escape to close.</span>
+    <a href="{{ routes.search_url }}" data-search-view-all hidden>{{ 'general.search.view_all' | t }}</a>
   </div>
 </div>

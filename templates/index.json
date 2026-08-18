@@ -1,12 +1,75 @@
 {
   "sections": {
-    "hero": { "type": "hero" },
-    "discovery": { "type": "discovery-collection" },
-    "featured-products": { "type": "featured-products" },
-    "featured-collections": { "type": "featured-collections" },
-    "recently-viewed": { "type": "recently-viewed" },
-    "trust-block": { "type": "trust-block" },
-    "newsletter": { "type": "newsletter" }
+    "hero": {
+      "type": "hero",
+      "settings": {
+        "heading": "VennixStore",
+        "primary_label": "Shop all",
+        "height": 620,
+        "full_width": false
+      }
+    },
+    "categories": {
+      "type": "featured-collections",
+      "settings": {
+        "title": "Shop by category",
+        "columns": "3"
+      }
+    },
+    "featured": {
+      "type": "featured-products",
+      "settings": {
+        "title": "Featured products",
+        "fallback_to_all": true,
+        "products_to_show": 8,
+        "columns_desktop": "4",
+        "columns_mobile": "2"
+      }
+    },
+    "new-arrivals": {
+      "type": "featured-products",
+      "disabled": true,
+      "settings": {
+        "title": "New arrivals",
+        "fallback_to_all": false,
+        "products_to_show": 8
+      }
+    },
+    "best-sellers": {
+      "type": "featured-products",
+      "disabled": true,
+      "settings": {
+        "title": "Best sellers",
+        "fallback_to_all": false,
+        "products_to_show": 8
+      }
+    },
+    "editorial": {
+      "type": "image-with-text",
+      "disabled": true,
+      "settings": {}
+    },
+    "values": {
+      "type": "trust-block",
+      "blocks": {
+        "support": {
+          "type": "item",
+          "settings": {
+            "icon": "support",
+            "title": "Customer support",
+            "text": "<p>support@vennixstore.com</p>"
+          }
+        }
+      },
+      "block_order": ["support"]
+    },
+    "newsletter": {
+      "type": "newsletter",
+      "settings": {
+        "heading": "Stay in the loop",
+        "text": "<p>Product news and store updates, sent to your inbox.</p>"
+      }
+    }
   },
-  "order": ["hero","discovery","featured-products","featured-collections","recently-viewed","trust-block","newsletter"]
+  "order": ["hero", "categories", "featured", "new-arrivals", "best-sellers", "editorial", "values", "newsletter"]
 }

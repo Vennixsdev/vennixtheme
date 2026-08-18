@@ -1,31 +1,31 @@
 {%- liquid
-  assign p = product | default: card_product
-  compute_tag = ''
-  if p.compare_at_price > p.price and p.compare_at_price != blank
-    compute_tag = 'sale'
-  endif
-  assign created = p.created_at | date: '%s' | plus: 0
-  assign now_ts = 'now' | date: '%s' | plus: 0
-  assign is_new = false
-  if now_ts | minus: created < 2592000
-    assign is_new = true
-  endif
+  assign badge_product = product | default: card_product
+  assign badge_best = false
+  assign badge_new_arrival = false
+  assign badge_new = false
+  assign badge_limited = false
+
+  for product_tag in badge_product.tags
+    assign tag_handle = product_tag | handleize
+    case tag_handle
+      when 'best-seller', 'bestseller'
+        assign badge_best = true
+      when 'new-arrival', 'new-arrivals'
+        assign badge_new_arrival = true
+      when 'new'
+        assign badge_new = true
+      when 'limited-edition', 'limited'
+        assign badge_limited = true
+    endcase
+  endfor
 -%}
-<span class="badge-stack" data-badge-stack>
-  {%- if compute_tag == 'sale' -%}
+<div class="badge-list" aria-label="Product status">
+  {%- if badge_product.available == false -%}
+    <span class="badge badge--neutral">Sold out</span>
+  {%- elsif badge_product.compare_at_price_max > badge_product.price_min -%}
     <span class="badge badge--sale">Sale</span>
   {%- endif -%}
-  {%- if is_new -%}
-    <span class="badge badge--new">New</span>
-  {%- endif -%}
-  {%- if p.tags contains 'limited' -%}
-    <span class="badge badge--limited">Limited</span>
-  {%- endif -%}
-  {%- if p.available == false -%}
-    <span class="badge badge--soldout">Sold out</span>
-  {%- elsif p.available == true and p.quantity_policy.minimum == 1 and p.inventory_management and p.inventory_quantity <= 5 and p.inventory_quantity > 0 -%}
-    <span class="badge badge--instock">Only {{ p.inventory_quantity }} left</span>
-  {%- elsif p.available -%}
-    <span class="badge badge--instock">In stock</span>
-  {%- endif -%}
-</span>
+  {%- if badge_best -%}<span class="badge">Best seller</span>{%- endif -%}
+  {%- if badge_new_arrival -%}<span class="badge">New arrival</span>{%- elsif badge_new -%}<span class="badge">New</span>{%- endif -%}
+  {%- if badge_limited -%}<span class="badge">Limited edition</span>{%- endif -%}
+</div>

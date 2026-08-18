@@ -1,285 +1,281 @@
-/* ============================================================
-   VennixStore Elite — Cart engine
-   Talks to Shopify's AJAX Cart API (/cart.js, /cart/add.js, etc).
-   Re-renders drawer / page when state changes.
-   ============================================================ */
 (function () {
   'use strict';
 
-  const $  = (s, c) => (c||document).querySelector(s);
-  const $$ = (s, c) => Array.from((c||document).querySelectorAll(s));
-
+  const $ = (selector, context = document) => context.querySelector(selector);
+  const $$ = (selector, context = document) => Array.from(context.querySelectorAll(selector));
   const U = () => window.VennixUtils;
-  const R = () => window.VennixUtils.routes();
-  const esc = (v) => window.VennixUtils.escapeHtml(v);
-  const url = (v) => window.VennixUtils.safeUrl(v);
+  let mutationInProgress = false;
 
-  async function getCart() {
-    try {
-      const r = await fetch(R().cartJs, { credentials: 'same-origin', headers: { 'X-Requested-With':'XMLHttpRequest' } });
-      return await r.json();
-    } catch (e) { console.warn('[Vennix] cart fetch failed', e); return null; }
-  }
-  async function changeQty(key, qty) {
-    try {
-      const r = await fetch(R().cartChangeJs, {
-        method:'POST',
-        credentials:'same-origin',
-        headers:{ 'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest' },
-        body: JSON.stringify({ id: key, quantity: qty })
-      });
-      return r.ok ? r.json() : null;
-    } catch (e) { return null; }
-  }
-  async function addItem(id, qty, properties) {
-    const r = await fetch(R().cartAddJs, {
-      method:'POST',
-      credentials:'same-origin',
-      headers:{ 'Content-Type':'application/json', 'Accept':'application/javascript', 'X-Requested-With':'XMLHttpRequest' },
-      body: JSON.stringify({ id, quantity: qty || 1, properties: properties || {} })
-    });
-    return r.json();
-  }
-  async function addItemForm(formData) {
-    const r = await fetch(R().cartAddJs, {
-      method:'POST',
-      credentials:'same-origin',
-      body: formData
-    });
-    if (!r.ok) throw new Error('add failed');
-    return r.json();
+  async function request(path, options = {}) {
+    const response = await fetch(path, { credentials: 'same-origin', ...options, headers: { 'X-Requested-With': 'XMLHttpRequest', ...(options.headers || {}) } });
+    let payload;
+    try { payload = await response.json(); } catch (_) { payload = {}; }
+    if (!response.ok) throw new Error(payload.description || payload.message || 'Cart request failed');
+    return payload;
   }
 
-  const formatMoney = (cents) => window.VennixUtils.formatMoney(cents);
+  function getCart() { return request(U().routes().cartJs); }
+  function changeLine(key, quantity) {
+    return request(U().routes().cartChangeJs, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: key, quantity })
+    });
+  }
+  function addForm(formData) { return request(U().routes().cartAddJs, { method: 'POST', body: formData }); }
+  function addVariant(id, quantity = 1) {
+    return request(U().routes().cartAddJs, {
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [{ id, quantity }] })
+    });
+  }
 
   const CartEngine = {
-    drawOpen: false,
-    init(app) {
-      this.app = app;
-      this.bindAddToCart();
-      this.bindDrawerTriggers();
-      this.bindDrawerClose();
-      this.bindPage();
-      this.bindUpsell();
-      window.addEventListener('vxn:cart:add',     () => this.refreshCart('flash', U().t('added') || 'Added'));
-      window.addEventListener('vxn:cart:changed', () => this.refreshCart());
-      // Listen for cross-component updates
-      document.addEventListener('vxn:cart:add',     (e) => this.refreshCart('flash', e.detail?.label || U().t('added') || 'Added'));
-      document.addEventListener('vxn:cart:changed', () => this.refreshCart());
-      this.refreshCart();
+    init() {
+      this.mount = $('#CartDrawerMount');
+      this.drawer = $('[data-cart-drawer]', this.mount || document);
+      this.bindDelegatedEvents();
+      if (this.mount) getCart().then((cart) => this.render(cart)).catch(() => {});
+      this.loadAllRecommendations();
     },
-    openDrawer() {
-      const mount = document.getElementById('CartDrawerMount');
-      if (!mount) return;
-      mount.setAttribute('aria-hidden','false');
-      document.body.style.overflow = 'hidden';
-    },
-    closeDrawer() {
-      const mount = document.getElementById('CartDrawerMount');
-      if (!mount) return;
-      mount.setAttribute('aria-hidden','true');
-      document.body.style.overflow = '';
-    },
-    bindAddToCart() {
-      // Guard: init() and the DOMContentLoaded hook can both reach this.
-      // Without the flag every listener was attached twice (double add-to-cart).
-      if (this._addToCartBound) return;
-      this._addToCartBound = true;
-      // pages with the traditional form submit
-      $$('[data-product-form]').forEach((form) => {
-        form.addEventListener('submit', async (e) => {
-          if (window.App?.AppContext?.settings?.cart_type !== 'drawer' && !form.matches('[data-add-from-anywhere]')) return;
-          if (form.dataset.classic === '1') return; // opt-out for direct checkout
-          e.preventDefault();
-          const fd = new FormData(form);
-          try {
-            const r = await addItemForm(fd);
-            this.openDrawer();
-            this.refreshCart('flash', U().t('added') || 'Added');
-          } catch (err) {
-            console.warn(err);
-          }
-        });
-      });
-      // quick add on collection grid
-      document.addEventListener('click', async (e) => {
-        const quick = e.target.closest('[data-quick-add]');
-        if (!quick) return;
-        e.preventDefault();
-        const form = quick.closest('form');
-        if (!form) return;
-        try {
-          const fd = new FormData(form);
-          await addItemForm(fd);
-          this.openDrawer();
-          this.refreshCart('flash', U().t('added') || 'Added');
-        } catch (err) { console.warn(err); }
-      });
-    },
-    bindDrawerTriggers() {
-      $$('[data-cart-open]').forEach((b) => b.addEventListener('click', () => this.openDrawer()));
-    },
-    bindDrawerClose() {
-      $$('[data-cart-close]').forEach((b) => b.addEventListener('click', () => this.closeDrawer()));
-      const mount = document.getElementById('CartDrawerMount');
-      if (!mount) return;
-      mount.addEventListener('click', (e) => {
-        if (e.target === mount) this.closeDrawer();
-      });
-      document.addEventListener('keydown', (e) => {
-        if (e.key === 'Escape') this.closeDrawer();
-      });
-    },
-    bindPage() {
-      // Called again after every drawer re-render — mark nodes so persistent
-      // cart-page rows don't accumulate a listener per refresh.
-      $$('[data-cart-qty]').forEach((b) => {
-        if (b.dataset.vxnBound === '1') return;
-        b.dataset.vxnBound = '1';
-        b.addEventListener('click', async () => {
-          const picker = b.closest('[data-cart-line-id]');
-          if (!picker) return;
-          const id  = picker.dataset.cartLineId;
-          const inp = picker.querySelector('[data-cart-qty-input]');
-          if (!id || !inp) return;
-          const next = Math.max(0, (parseInt(inp.value, 10) || 0) + (parseInt(b.dataset.cartQty, 10) || 0));
-          inp.value = next;
-          const updated = await changeQty(id, next);
-          if (updated) this.refreshCart();
-          else location.reload();
-        });
-      });
-      $$('[data-cart-remove]').forEach((b) => {
-        if (b.dataset.vxnBound === '1') return;
-        b.dataset.vxnBound = '1';
-        b.addEventListener('click', async () => {
-          const line = b.closest('[data-line-id]');
-          const id   = line?.dataset.lineId;
-          if (!id) return;
-          const updated = await changeQty(id, 0);
-          if (updated) this.refreshCart();
-          else location.reload();
-        });
-      });
-    },
-    bindUpsell() {
-      document.addEventListener('click', async (e) => {
-        const btn = e.target.closest('[data-upsell-add]');
-        if (!btn) return;
-        const card = btn.closest('[data-upsell-card]');
-        const vid  = card?.dataset.variantId;
-        if (!vid) return;
-        await addItem(vid, 1);
-        this.refreshCart('flash', U().t('added') || 'Added');
-      });
-    },
-    async refreshCart(flash, flashLabel) {
-      const cart = await getCart();
-      if (!cart) return;
-      this.updateBubbles(cart);
-      this.renderDrawer(cart);
-      // The cart page used to call location.reload() on EVERY refresh — including
-      // the one fired during init() — which reloaded the page in a loop.
-      // Only reload when a mutation actually changed the line count.
-      const lines = $$('[data-cart-lines]');
-      if (lines.length && this._lastCount != null && this._lastCount !== cart.item_count) {
-        location.reload();
-        return;
-      }
-      this._lastCount = cart.item_count;
-      if (flash && flashLabel) this.toast(flashLabel);
-    },
-    updateBubbles(cart) {
-      $$('[data-cart-count]').forEach((b) => {
-        b.textContent = cart.item_count;
-        b.setAttribute('data-empty', (cart.item_count === 0).toString());
-      });
-      $$('[data-cart-count-inline]').forEach((s) => {
-        s.textContent = `· ${cart.item_count} ${cart.item_count === 1 ? 'item' : 'items'}`;
-      });
-      $$('[data-cart-subtotal]').forEach((s) => { s.textContent = formatMoney(cart.items_subtotal_price); });
-    },
-    renderDrawer(cart) {
-      const body = $('[data-cart-body]');
-      const foot = $('[data-cart-foot]');
-      if (!body) return;
-      body.innerHTML = cart.items.length === 0
-        ? `<div class="cart-drawer-empty">
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-            <strong style="display:block;margin-bottom:.4rem;color:var(--color-fg);">${esc(U().t('cartEmpty') || 'Your cart is empty')}</strong>
-            <p style="font-size:.9rem;">Browse our products — your finds await here.</p>
-            <a href="${url(R().collections)}" class="btn btn--ghost" style="margin-top:1rem;" data-cart-close>${esc(U().t('continueShopping') || 'Continue shopping')}</a>
-          </div>`
-        : cart.items.map((item) => `
-          <div class="cart-line" data-line-id="${esc(item.key)}">
-            <a href="${url(item.url)}" class="cart-line-media">${item.image ? `<img src="${esc(String(item.image).replace(/width=\d+/, 'width=200'))}" alt="" loading="lazy">` : ''}</a>
-            <div class="cart-line-info">
-              <a href="${url(item.url)}" class="cart-line-title">${esc(item.product_title)}</a>
-              ${item.variant_title && item.variant_title !== 'Default Title' ? `<small class="cart-line-variants">${esc(item.variant_title)}</small>` : ''}
-              <div class="cart-line-controls">
-                <div class="qty-picker" data-cart-line-id="${esc(item.key)}">
-                  <button type="button" data-cart-qty="-1" aria-label="Decrease">−</button>
-                  <input type="number" min="0" value="${esc(item.quantity)}" data-cart-qty-input aria-label="Quantity">
-                  <button type="button" data-cart-qty="1" aria-label="Increase">+</button>
-                </div>
-                <strong data-line-total>${formatMoney(item.final_line_price)}</strong>
-              </div>
-              <button type="button" class="cart-line-remove" data-cart-remove>Remove</button>
-            </div>
-          </div>
-        `).join('');
-      if (foot) foot.style.display = cart.items.length === 0 ? 'none' : '';
-      // Drawer markup is replaced wholesale, so its listeners must be re-bound;
-      // bindPage() is delegation-safe and only touches freshly rendered nodes.
-      this.bindPage();
-      this.updateShippingBar(cart);
-    },
-    updateShippingBar(cart) {
-      const bars = $$('[data-shipping-bar], [data-shipping-bar-drawer]');
-      if (!bars.length) return;
-      // Previously hardcoded to 75 via `parseInt(money_format)*0 + 75`, ignoring
-      // settings.free_shipping_threshold and disagreeing with the Liquid render.
-      const t = U().freeShippingThreshold();
-      if (!t) return;
-      bars.forEach((bar) => {
-        const txt  = bar.querySelector('.shipping-progress-text');
-        const fill = bar.querySelector('.shipping-progress-bar');
-        if (cart.total_price >= t) {
-          if (txt) txt.textContent = U().t('freeShippingDone') || 'You get FREE shipping!';
-          if (fill) fill.style.width = '100%';
-        } else {
-          const remaining = formatMoney(t - cart.total_price);
-          if (txt) txt.textContent = U().t('freeShippingProgress', { remaining, amount: remaining })
-                                     || `Add ${remaining} more for free shipping`;
-          if (fill) fill.style.width = Math.max(0, Math.min(100, (cart.total_price / t) * 100)).toFixed(0) + '%';
+
+    bindDelegatedEvents() {
+      if (this.bound) return;
+      this.bound = true;
+
+      document.addEventListener('click', async (event) => {
+        const openButton = event.target.closest('[data-cart-open]');
+        if (openButton) { event.preventDefault(); this.open(openButton); return; }
+        const closeButton = event.target.closest('[data-cart-close]');
+        if (closeButton && this.mount) { if (closeButton.tagName === 'BUTTON') event.preventDefault(); this.close(); return; }
+
+        const quantityButton = event.target.closest('[data-cart-qty]');
+        if (quantityButton) {
+          event.preventDefault();
+          const picker = quantityButton.closest('[data-cart-line-id]');
+          const input = $('[data-cart-qty-input]', picker);
+          const quantity = Math.max(0, (parseInt(input?.value, 10) || 0) + parseInt(quantityButton.dataset.cartQty, 10));
+          if (input) input.value = quantity;
+          await this.change(picker?.dataset.cartLineId, quantity);
+          return;
+        }
+
+        const removeButton = event.target.closest('[data-cart-remove]');
+        if (removeButton) {
+          event.preventDefault();
+          const line = removeButton.closest('[data-line-id]');
+          await this.change(line?.dataset.lineId, 0);
+          return;
+        }
+
+        const recommendationAdd = event.target.closest('[data-recommendation-add]');
+        if (recommendationAdd) {
+          event.preventDefault();
+          await this.addRecommended(recommendationAdd);
         }
       });
-    },
-    toast(label) {
-      const el = document.createElement('div');
-      el.className = 'vxn-toast';
-      el.textContent = label;
-      Object.assign(el.style, {
-        position:'fixed', bottom:'24px', left:'50%', transform:'translateX(-50%) translateY(20px)',
-        background:'var(--color-surface-2)', color:'var(--color-fg)', padding:'.7rem 1.1rem',
-        borderRadius:'999px', boxShadow:'var(--shadow-md)', border:'1px solid var(--color-border)',
-        zIndex:200, fontWeight:600, fontSize:'.9rem', opacity:'0', transition:'transform .25s ease, opacity .25s ease'
+
+      document.addEventListener('change', async (event) => {
+        const input = event.target.closest('[data-cart-qty-input]');
+        if (!input) return;
+        const picker = input.closest('[data-cart-line-id]');
+        await this.change(picker?.dataset.cartLineId, Math.max(0, parseInt(input.value, 10) || 0));
       });
-      document.body.appendChild(el);
-      requestAnimationFrame(() => { el.style.opacity = '1'; el.style.transform = 'translateX(-50%) translateY(0)'; });
-      setTimeout(() => { el.style.opacity = '0'; el.style.transform = 'translateX(-50%) translateY(20px)'; setTimeout(() => el.remove(), 250); }, 1800);
+
+      document.addEventListener('submit', async (event) => {
+        const form = event.target;
+        const isQuickAdd = form.matches('.quick-add-form');
+        const isProductForm = form.matches('[data-product-form]');
+        if (!isQuickAdd && !isProductForm) return;
+        if ((window.App?.AppContext?.settings?.cartType || 'drawer') !== 'drawer') return;
+        event.preventDefault();
+        const submit = event.submitter || $('button[type="submit"]', form);
+        if (submit?.disabled) return;
+        try {
+          if (submit) { submit.disabled = true; submit.setAttribute('aria-busy', 'true'); }
+          await addForm(new FormData(form));
+          const cart = await getCart();
+          this.render(cart);
+          this.open(submit);
+          this.announce(U().t('added') || 'Added to cart');
+          const status = $('[data-product-form-status]', form);
+          if (status) status.textContent = U().t('added') || 'Added to cart';
+        } catch (error) {
+          this.showError(error.message);
+          const status = $('[data-product-form-status]', form);
+          if (status) status.textContent = error.message;
+        } finally {
+          if (submit) { submit.disabled = false; submit.removeAttribute('aria-busy'); }
+        }
+      });
+
+      this.mount?.addEventListener('click', (event) => { if (event.target === this.mount) this.close(); });
+      this.drawer?.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') this.close();
+        window.VennixA11y?.trap(event, this.drawer);
+      });
     },
+
+    async change(key, quantity) {
+      if (!key || mutationInProgress) return;
+      mutationInProgress = true;
+      try {
+        const cart = await changeLine(key, quantity);
+        if ($('[data-cart-lines]') && !this.mount?.contains($('[data-cart-lines]'))) {
+          window.location.reload();
+          return;
+        }
+        this.render(cart);
+        this.announce('Cart updated');
+      } catch (error) {
+        this.showError(error.message);
+      } finally {
+        mutationInProgress = false;
+      }
+    },
+
+    open(opener) {
+      if (!this.mount || !this.drawer) return;
+      this.opener = opener || document.activeElement;
+      this.mount.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('drawer-open');
+      requestAnimationFrame(() => this.drawer.focus());
+    },
+
+    close() {
+      if (!this.mount) return;
+      this.mount.setAttribute('aria-hidden', 'true');
+      document.body.classList.remove('drawer-open');
+      this.opener?.focus();
+    },
+
+    render(cart) {
+      if (!cart) return;
+      $$('[data-cart-count]').forEach((node) => {
+        node.textContent = cart.item_count;
+        node.dataset.empty = String(cart.item_count === 0);
+      });
+      $$('[data-cart-count-inline]').forEach((node) => { node.textContent = `${cart.item_count} ${cart.item_count === 1 ? 'item' : 'items'}`; });
+      $$('[data-cart-subtotal]').forEach((node) => { node.textContent = U().formatMoney(cart.items_subtotal_price); });
+
+      const body = $('[data-cart-body]');
+      if (body) body.innerHTML = cart.items.length ? cart.items.map((item) => this.lineMarkup(item)).join('') : this.emptyMarkup();
+      const footer = $('[data-cart-footer]');
+      if (footer) footer.hidden = cart.items.length === 0;
+      this.updateShipping(cart);
+      this.updateRecommendations(cart);
+    },
+
+    lineMarkup(item) {
+      const image = item.image ? `<img src="${U().escapeAttr(U().withParam(item.image, 'width', 220))}" alt="${U().escapeAttr(item.product_title)}" width="88" height="88" loading="lazy">` : '';
+      const variant = item.variant_title && item.variant_title !== 'Default Title' ? `<p class="cart-line-variant">${U().escapeHtml(item.variant_title)}</p>` : '';
+      const compare = item.original_line_price > item.final_line_price ? `<s>${U().escapeHtml(U().formatMoney(item.original_line_price))}</s>` : '';
+      return `<div class="cart-line" data-line-id="${U().escapeAttr(item.key)}">
+        <a class="cart-line-image" href="${U().safeUrl(item.url)}">${image}</a>
+        <div class="cart-line-details">
+          <a class="cart-line-title" href="${U().safeUrl(item.url)}">${U().escapeHtml(item.product_title)}</a>${variant}
+          <div class="cart-line-bottom">
+            <div class="quantity-picker quantity-picker--small" data-cart-line-id="${U().escapeAttr(item.key)}">
+              <button type="button" data-cart-qty="-1" aria-label="Decrease ${U().escapeAttr(item.product_title)} quantity">−</button>
+              <input type="number" min="0" value="${item.quantity}" data-cart-qty-input aria-label="Quantity for ${U().escapeAttr(item.product_title)}">
+              <button type="button" data-cart-qty="1" aria-label="Increase ${U().escapeAttr(item.product_title)} quantity">+</button>
+            </div>
+            <div class="cart-line-price">${compare}<strong>${U().escapeHtml(U().formatMoney(item.final_line_price))}</strong></div>
+          </div>
+          <button type="button" class="cart-line-remove" data-cart-remove>${U().escapeHtml(U().t('remove') || 'Remove')}</button>
+        </div>
+      </div>`;
+    },
+
+    emptyMarkup() {
+      return `<div class="cart-empty"><h3>${U().escapeHtml(U().t('cartEmpty') || 'Your cart is empty')}</h3><a class="button button--secondary" href="${U().safeUrl(U().routes().collections)}">${U().escapeHtml(U().t('continueShopping') || 'Continue shopping')}</a></div>`;
+    },
+
+    updateShipping(cart) {
+      const threshold = U().freeShippingThreshold();
+      if (!threshold) return;
+      $$('[data-shipping-bar]').forEach((bar) => {
+        const percent = Math.min(100, Math.round((cart.total_price / threshold) * 100));
+        const progress = $('.shipping-progress', bar);
+        const value = $('.shipping-progress-value', bar);
+        const text = $('.shipping-progress-text', bar);
+        progress?.setAttribute('aria-valuenow', String(percent));
+        if (value) value.style.width = `${percent}%`;
+        if (text) text.textContent = cart.total_price >= threshold
+          ? (U().t('freeShippingDone') || 'Your order qualifies for free shipping')
+          : (U().t('freeShippingProgress', { remaining: U().formatMoney(threshold - cart.total_price) }) || `Add ${U().formatMoney(threshold - cart.total_price)} more for free shipping`);
+      });
+    },
+
+    updateRecommendations(cart) {
+      $$('[data-cart-recommendations]').forEach((section) => {
+        if (!cart.items.length) { section.hidden = true; return; }
+        const productId = String(cart.items[0].product_id);
+        section.hidden = false;
+        if (section.dataset.loadedProduct === productId) return;
+        section.dataset.productId = productId;
+        section.dataset.loadedProduct = productId;
+        this.loadRecommendations(section);
+      });
+    },
+
+    loadAllRecommendations() { $$('[data-cart-recommendations]').forEach((section) => this.loadRecommendations(section)); },
+
+    async loadRecommendations(section) {
+      const productId = section.dataset.productId;
+      const grid = $('[data-cart-recommendations-grid]', section);
+      if (!productId || !grid) { section.hidden = true; return; }
+      grid.innerHTML = '';
+      try {
+        const base = U().routes().recommendations.replace(/\.json$/, '');
+        const response = await fetch(`${base}.json?product_id=${encodeURIComponent(productId)}&limit=4&intent=related`, { credentials: 'same-origin' });
+        if (!response.ok) throw new Error(String(response.status));
+        const payload = await response.json();
+        const products = payload.products || [];
+        if (!products.length) { section.hidden = true; return; }
+        grid.innerHTML = products.map((product) => this.recommendationMarkup(product)).join('');
+        section.hidden = false;
+      } catch (_) {
+        section.hidden = true;
+      }
+    },
+
+    recommendationMarkup(product) {
+      const image = product.featured_image || product.images?.[0] || '';
+      const availableVariants = (product.variants || []).filter((variant) => variant.available);
+      const canQuickAdd = product.variants?.length === 1 && availableVariants.length === 1;
+      const action = canQuickAdd
+        ? `<button type="button" class="text-link" data-recommendation-add data-variant-id="${availableVariants[0].id}">Add</button>`
+        : `<a class="text-link" href="${U().safeUrl(product.url)}">View</a>`;
+      return `<article class="cart-recommendation-card">
+        <a href="${U().safeUrl(product.url)}" class="cart-recommendation-image">${image ? `<img src="${U().escapeAttr(U().withParam(image, 'width', 240))}" alt="${U().escapeAttr(product.title)}" width="120" height="120" loading="lazy">` : ''}</a>
+        <div><a href="${U().safeUrl(product.url)}"><strong>${U().escapeHtml(product.title)}</strong></a><span>${U().escapeHtml(U().formatMoney(product.price))}</span>${action}</div>
+      </article>`;
+    },
+
+    async addRecommended(button) {
+      try {
+        button.disabled = true;
+        await addVariant(button.dataset.variantId, 1);
+        const cart = await getCart();
+        this.render(cart);
+        this.announce(U().t('added') || 'Added to cart');
+      } catch (error) {
+        this.showError(error.message);
+      } finally {
+        button.disabled = false;
+      }
+    },
+
+    showError(message) {
+      const error = $('[data-cart-error]');
+      if (error) { error.textContent = message || U().t('cartError'); error.hidden = false; }
+      this.announce(message || U().t('cartError') || 'Cart error');
+    },
+
+    announce(message) {
+      const status = $('[data-global-status]');
+      if (status) { status.textContent = ''; requestAnimationFrame(() => { status.textContent = message; }); }
+    }
   };
 
-  // expose for tap-from-anywhere (used by the sticky ATC etc.)
-  window.VennixCart = {
-    add:    (id, qty, props) => addItem(id, qty, props),
-    change: (key, qty) => changeQty(key, qty),
-    open:   () => CartEngine.openDrawer(),
-    close:  () => CartEngine.closeDrawer(),
-    refresh: () => CartEngine.refreshCart(),
-  };
-  // theme.js startModules() owns initialisation. The old extra
-  // DOMContentLoaded -> bindAddToCart() call double-bound every form.
   window.CartEngine = CartEngine;
+  window.VennixCart = { add: addVariant, change: changeLine, open: (opener) => CartEngine.open(opener), close: () => CartEngine.close() };
 })();

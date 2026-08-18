@@ -1,23 +1,22 @@
 {
   "general": {
-    "currency": "$",
-    "search": {
-      "title": "Search",
-      "placeholder": "Search products, collections, articles…",
-      "submit": "Search",
-      "results": "Results for “{{ terms }}”",
-      "no_results": "No matches for “{{ terms }}”",
-      "unavailable": "Search is unavailable right now",
-      "suggestions": "Suggestions",
-      "popular": "Popular searches",
-      "view_all": "View all results"
-    },
     "accessibility": {
       "skip_to_text": "Skip to main content",
       "close": "Close",
       "menu": "Open menu",
       "cart": "Open cart",
-      "search": "Open search"
+      "search": "Open search",
+      "loading": "Loading"
+    },
+    "search": {
+      "title": "Search",
+      "placeholder": "Search products and collections",
+      "submit": "Search",
+      "results": "Results for “{{ terms }}”",
+      "no_results": "No results found",
+      "unavailable": "Search is unavailable right now",
+      "view_all": "View all results",
+      "browse": "Browse collections"
     }
   },
   "products": {
@@ -26,14 +25,15 @@
       "sold_out": "Sold out",
       "unavailable": "Unavailable",
       "quantity": "Quantity",
-      "view_details": "View details",
+      "view_details": "View product",
+      "choose_options": "Choose options",
       "quick_add": "Quick add",
       "save_for_later": "Save for later",
       "from": "From {{ price }}",
       "save": "Save {{ amount }}",
       "in_stock": "In stock",
-      "low_stock": "Only {{ count }} left",
-      "preorder": "Pre-order"
+      "taxes_included": "Tax included.",
+      "shipping_policy_html": "<a href=\"{{ link }}\">Shipping</a> calculated at checkout."
     }
   },
   "cart": {
@@ -45,12 +45,13 @@
       "note": "Order note",
       "checkout": "Checkout",
       "remove": "Remove",
-      "update": "Update",
-      "added": "Added — keep browsing"
+      "update": "Update cart",
+      "added": "Added to cart",
+      "error": "We couldn't update your cart. Please try again."
     },
     "free_shipping": {
-      "progress_made": "Add {{ remaining }} more for FREE shipping",
-      "progress_done": "Congrats — you get FREE shipping!"
+      "progress_made": "Add {{ remaining }} more for free shipping",
+      "progress_done": "Your order qualifies for free shipping"
     }
   },
   "sections": {
@@ -60,9 +61,9 @@
     },
     "footer": {
       "newsletter": {
-        "title": "Join the Vennix insider list",
-        "subtitle": "Members get early access, private drops, and 10% off their first order.",
-        "placeholder": "Enter your email",
+        "title": "Stay in the loop",
+        "subtitle": "Product news and store updates, sent to your inbox.",
+        "placeholder": "Email address",
         "submit": "Subscribe"
       }
     }

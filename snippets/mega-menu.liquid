@@ -1,33 +1,47 @@
-<div class="mega-menu" data-mega-content role="menu" aria-label="{{ parent_title | escape }} mega menu">
-  <div class="container">
-    <div class="mega-menu-grid">
-      {%- assign col_count = 0 -%}
-      {%- for child in links -%}
-        {%- if col_count == 0 or col_count == 3 -%}
-          </div><div class="mega-menu-grid" style="grid-template-columns:repeat(4,minmax(0,1fr));">
-        {%- endif -%}
-        <div class="mega-col" role="menuitem">
-          <h4>{{ child.title }}</h4>
-          {%- if child.links.size > 0 -%}
-            <ul>
-              {%- for sub in child.links -%}
-                <li><a href="{{ sub.url }}">{{ sub.title }}</a></li>
+<div class="mega-menu" id="MegaMenu-{{ menu_id }}-{{ link.handle }}" data-mega-content aria-hidden="true">
+  <div class="container mega-menu-inner">
+    <div class="mega-menu-links">
+      {%- for child_link in link.links -%}
+        <div class="mega-column">
+          <a class="mega-heading" href="{{ child_link.url }}"{% if child_link.current %} aria-current="page"{% endif %}>{{ child_link.title }}</a>
+          {%- if child_link.links.size > 0 -%}
+            <ul role="list">
+              {%- for grandchild_link in child_link.links -%}
+                <li><a href="{{ grandchild_link.url }}"{% if grandchild_link.current %} aria-current="page"{% endif %}>{{ grandchild_link.title }}</a></li>
               {%- endfor -%}
             </ul>
-          {%- else -%}
-            <a href="{{ child.url }}">Shop {{ child.title }} →</a>
           {%- endif -%}
         </div>
-        {%- assign col_count = col_count | plus: 1 -%}
       {%- endfor -%}
     </div>
 
-    {%- if section.settings.mega_feature_title != blank -%}
-      <div class="mega-feature" style="margin-top:1rem;">
-        <div>
-          <h5>{{ section.settings.mega_feature_title }}</h5>
-          <small>{{ section.settings.mega_feature_text }}</small>
-        </div>
+    {%- if featured_collection != blank or featured_product != blank or promo_image != blank -%}
+      <div class="mega-features">
+        {%- if featured_collection != blank -%}
+          {%- assign feature_image = featured_collection.image | default: featured_collection.products.first.featured_image -%}
+          <a class="mega-feature-card" href="{{ featured_collection.url }}">
+            {%- if feature_image != blank -%}
+              {{ feature_image | image_url: width: 640 | image_tag: widths: '240, 360, 480, 640', sizes: '240px', loading: 'lazy', alt: featured_collection.title }}
+            {%- endif -%}
+            <span><small>Featured collection</small><strong>{{ featured_collection.title }}</strong></span>
+          </a>
+        {%- endif -%}
+
+        {%- if featured_product != blank -%}
+          <a class="mega-feature-card" href="{{ featured_product.url }}">
+            {%- if featured_product.featured_image != blank -%}
+              {{ featured_product.featured_image | image_url: width: 640 | image_tag: widths: '240, 360, 480, 640', sizes: '240px', loading: 'lazy', alt: featured_product.title }}
+            {%- endif -%}
+            <span><small>Featured product</small><strong>{{ featured_product.title }}</strong>{% render 'price', product: featured_product, compact: true %}</span>
+          </a>
+        {%- endif -%}
+
+        {%- if promo_image != blank -%}
+          {%- if promo_link != blank -%}<a class="mega-feature-card" href="{{ promo_link }}">{%- else -%}<div class="mega-feature-card">{%- endif -%}
+            {{ promo_image | image_url: width: 640 | image_tag: widths: '240, 360, 480, 640', sizes: '240px', loading: 'lazy', alt: promo_heading }}
+            {%- if promo_heading != blank -%}<span><strong>{{ promo_heading }}</strong></span>{%- endif -%}
+          {%- if promo_link != blank -%}</a>{%- else -%}</div>{%- endif -%}
+        {%- endif -%}
       </div>
     {%- endif -%}
   </div>

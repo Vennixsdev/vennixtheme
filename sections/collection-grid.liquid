@@ -1,71 +1,107 @@
-<div class="container section">
-  {% render 'breadcrumbs' %}
+{%- liquid
+  assign active_filter_count = 0
+  assign desktop_columns = section.settings.columns_desktop | plus: 0
+  for filter in collection.filters
+    assign active_filter_count = active_filter_count | plus: filter.active_values.size
+    if filter.type == 'price_range'
+      if filter.min_value.value != nil or filter.max_value.value != nil
+        assign active_filter_count = active_filter_count | plus: 1
+      endif
+    endif
+  endfor
+-%}
+{%- paginate collection.products by section.settings.products_per_page -%}
+  <div class="container collection-page section-space">
+    {% render 'breadcrumbs' %}
 
-  <header class="collection-header" style="margin-bottom:1.6rem;">
-    <div>
-      <small class="eyebrow">{{ collection.products_count | default: 0 }} products</small>
-      <h1 style="margin-top:.5rem;">{{ collection.title }}</h1>
-      {%- if collection.description != blank -%}
-        <p style="color:var(--color-muted);max-width:60ch;margin-top:.7rem;">{{ collection.description | strip_html | truncatewords: 32 }}</p>
+    <header class="collection-header{% if section.settings.show_image and collection.image != blank %} collection-header--with-image{% endif %}">
+      <div class="collection-header-copy">
+        <p class="eyebrow">{{ collection.products_count }} {{ collection.products_count | pluralize: 'product', 'products' }}</p>
+        <h1>{{ collection.title }}</h1>
+        {%- if collection.description != blank -%}<div class="collection-description rte">{{ collection.description }}</div>{%- endif -%}
+      </div>
+      {%- if section.settings.show_image and collection.image != blank -%}
+        <div class="collection-header-image">{{ collection.image | image_url: width: 1200 | image_tag: widths: '480, 750, 1000, 1200', sizes: '(max-width: 749px) 100vw, 40vw', loading: 'eager', fetchpriority: 'high', alt: collection.title }}</div>
       {%- endif -%}
-    </div>
-  </header>
+    </header>
 
-  <div class="collection-layout">
-    {%- if section.settings.show_filters -%}
-      <aside class="filter-sidebar" data-filter-sidebar>
-        {% render 'filter-sidebar', collection: collection %}
-      </aside>
+    <div class="collection-toolbar{% if section.settings.sticky_toolbar %} collection-toolbar--sticky{% endif %}">
+      <div class="collection-toolbar-start">
+        {%- if section.settings.show_filters and collection.filters.size > 0 -%}
+          <button type="button" class="button button--secondary filter-open" data-filter-open aria-controls="Filters-{{ section.id }}" aria-expanded="false">
+            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M4 6h16M7 12h10M10 18h4"/></svg>
+            Filters{% if active_filter_count > 0 %} <span class="active-filter-count">{{ active_filter_count }}</span>{% endif %}
+          </button>
+        {%- endif -%}
+        <p class="collection-result-count" role="status">{{ collection.products_count }} {{ collection.products_count | pluralize: 'product', 'products' }}</p>
+      </div>
+      {% render 'sort-dropdown', collection: collection %}
+    </div>
+
+    {%- if active_filter_count > 0 -%}
+      <div class="active-filters" aria-label="Active filters">
+        {%- for filter in collection.filters -%}
+          {%- for value in filter.active_values -%}<a href="{{ value.url_to_remove }}">{{ value.label }} <span aria-hidden="true">×</span><span class="visually-hidden">Remove filter</span></a>{%- endfor -%}
+          {%- if filter.type == 'price_range' -%}
+            {%- if filter.min_value.value != nil or filter.max_value.value != nil -%}
+              <a href="{{ filter.url_to_remove }}">
+                {%- if filter.min_value.value -%}{{ filter.min_value.value | money }}{%- else -%}{{ 0 | money }}{%- endif -%}
+                –
+                {%- if filter.max_value.value -%}{{ filter.max_value.value | money }}{%- else -%}{{ filter.range_max | money }}{%- endif -%}
+                <span aria-hidden="true">×</span><span class="visually-hidden">Remove price filter</span>
+              </a>
+            {%- endif -%}
+          {%- endif -%}
+        {%- endfor -%}
+        <a class="active-filters-clear" href="{{ collection.url }}{% if collection.sort_by != blank %}?sort_by={{ collection.sort_by | url_encode }}{% endif %}">Clear all</a>
+      </div>
     {%- endif -%}
 
-    <div class="collection-main">
-      <div class="collection-toolbar">
-        <div class="collection-toolbar-left">
-          <strong class="collection-count">{{ collection.products_count | default: 0 }} products</strong>
-          {%- if current_tags.size > 0 or search.performed -%}
-            <div class="active-tags" style="display:flex;gap:.4rem;flex-wrap:wrap;">
-              {%- for tag in current_tags -%}
-                <a href="{{ tag | link_to_tag: tag | remove: 'tag=' | prepend: collection.url }}" class="badge badge--instock">{{ tag }} ×</a>
-              {%- endfor -%}
-              <a href="{{ collection.url }}" class="badge badge--soldout">Clear all</a>
-            </div>
-          {%- endif -%}
-        </div>
-        <div class="collection-toolbar-right">
-          {% render 'sort-dropdown', sort_by: sort_by %}
-        </div>
-      </div>
+    <div class="collection-layout{% unless section.settings.show_filters and collection.filters.size > 0 %} collection-layout--full{% endunless %}">
+      {%- if section.settings.show_filters and collection.filters.size > 0 -%}
+        <aside class="filter-sidebar" id="Filters-{{ section.id }}" data-filter-drawer aria-hidden="false" aria-labelledby="FilterHeading-{{ section.id }}">
+          <button type="button" class="drawer-backdrop" data-filter-close aria-label="{{ 'general.accessibility.close' | t }}"></button>
+          <div class="filter-panel" tabindex="-1">
+            {% render 'filter-sidebar', collection: collection, active_filter_count: active_filter_count %}
+          </div>
+        </aside>
+      {%- endif -%}
 
-      {%- if collection.products.size > 0 -%}
-        <div class="collection-grid" data-collection-grid>
-          {%- for product in collection.products -%}
-            {% render 'product-card', product: product %}
-          {%- endfor -%}
-        </div>
+      <div class="collection-products">
+        {%- if collection.products.size > 0 -%}
+          <div class="product-grid product-grid--{{ section.settings.columns_desktop }}" style="--mobile-columns:{{ section.settings.columns_mobile }}" data-product-grid>
+            {%- for item in collection.products -%}
+              {%- if forloop.index <= desktop_columns -%}{%- assign card_loading = 'eager' -%}{%- else -%}{%- assign card_loading = 'lazy' -%}{%- endif -%}
+              {% render 'product-card', product: item, loading: card_loading %}
+            {%- endfor -%}
+          </div>
+        {%- else -%}
+          <div class="empty-state">
+            <h2>No products found</h2>
+            <p>Try removing one or more filters.</p>
+            <a class="button button--secondary" href="{{ collection.url }}">Clear filters</a>
+          </div>
+        {%- endif -%}
 
         {%- if paginate.pages > 1 -%}
-          <nav class="collection-pagination" aria-label="Pagination">
-            {{ paginate | default_pagination }}
-          </nav>
+          <nav class="pagination" aria-label="Pagination">{{ paginate | default_pagination }}</nav>
         {%- endif -%}
-      {%- else -%}
-        <div class="collection-empty">
-          <strong style="display:block;margin-bottom:.5rem;color:var(--color-fg);">No products yet</strong>
-          <p style="font-size:.9rem;">Try clearing your filters or browsing the full catalog.</p>
-          <a href="{{ collections.all.url }}" class="btn btn--primary" style="margin-top:1rem;">Browse all</a>
-        </div>
-      {%- endif -%}
+      </div>
     </div>
   </div>
-</div>
+{%- endpaginate -%}
 
 {% schema %}
 {
-  "name": "Collection grid",
+  "name": "Collection products",
   "tag": "section",
   "settings": [
-    { "type": "checkbox", "id": "show_filters", "label": "Show filters", "default": true },
-    { "type": "checkbox", "id": "sticky_scroll", "label": "Sticky toolbar", "default": true }
+    { "type": "checkbox", "id": "show_image", "label": "Show collection image", "default": true },
+    { "type": "checkbox", "id": "show_filters", "label": "Show Shopify filters", "default": true },
+    { "type": "checkbox", "id": "sticky_toolbar", "label": "Sticky product toolbar", "default": true },
+    { "type": "range", "id": "products_per_page", "min": 12, "max": 48, "step": 4, "label": "Products per page", "default": 24 },
+    { "type": "select", "id": "columns_desktop", "label": "Desktop columns", "default": "3", "options": [{ "value": "2", "label": "2" }, { "value": "3", "label": "3" }, { "value": "4", "label": "4" }] },
+    { "type": "select", "id": "columns_mobile", "label": "Mobile columns", "default": "2", "options": [{ "value": "1", "label": "1" }, { "value": "2", "label": "2" }] }
   ]
 }
 {% endschema %}

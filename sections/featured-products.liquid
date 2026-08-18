@@ -1,50 +1,45 @@
-<div class="container section">
-  <div class="heading-row">
-    <div>
-      <small class="eyebrow">{{ section.settings.eyebrow | default: 'Selected for you' }}</small>
-      <h2>{{ section.settings.title | default: 'Featured products' }}</h2>
-    </div>
-
-    {%- if section.settings.show_merch_tabs -%}
-      <div class="heading-extra">
-        <div class="merch-tabs" data-merch-tabs>
-          <button type="button" class="merch-tab" aria-current="true" data-merch-trigger="featured">Featured</button>
-          {%- if section.settings.enable_new -%}
-            <button type="button" class="merch-tab" data-merch-trigger="new">New arrivals</button>
-          {%- endif -%}
-          {%- if section.settings.enable_best -%}
-            <button type="button" class="merch-tab" data-merch-trigger="best">Best sellers</button>
-          {%- endif -%}
+{%- liquid
+  assign product_source = section.settings.collection
+  if product_source == blank and section.settings.fallback_to_all
+    assign product_source = collections.all
+  endif
+-%}
+{%- if product_source != blank and product_source.products_count > 0 -%}
+  <section class="section-space">
+    <div class="container">
+      <div class="section-heading">
+        <div>
+          {%- if section.settings.eyebrow != blank -%}<p class="eyebrow">{{ section.settings.eyebrow }}</p>{%- endif -%}
+          <h2>{{ section.settings.title }}</h2>
+          {%- if section.settings.text != blank -%}<div class="section-heading-text rte">{{ section.settings.text }}</div>{%- endif -%}
         </div>
-        {%- if section.settings.view_all != blank -%}
-          <a href="{{ section.settings.view_all }}" class="btn btn--text">All →</a>
-        {%- endif -%}
+        {%- if section.settings.show_view_all -%}<a class="text-link" href="{{ product_source.url }}">{{ section.settings.view_all_label }}</a>{%- endif -%}
       </div>
-    {%- endif -%}
-  </div>
 
-  <div class="collection-grid" data-merch-pane="featured">
-    {%- assign products = collections[section.settings.collection].products | default: collections['frontpage'].products | default: collections.all.products -%}
-    {%- assign limit = section.settings.products_to_show | default: 8 -%}
-    {%- for p in products limit: limit -%}
-      {% render 'product-card', product: p %}
-    {%- endfor -%}
-  </div>
-</div>
+      <div class="product-grid product-grid--{{ section.settings.columns_desktop }}" style="--mobile-columns:{{ section.settings.columns_mobile }}">
+        {%- for item in product_source.products limit: section.settings.products_to_show -%}
+          {% render 'product-card', product: item, loading: 'lazy' %}
+        {%- endfor -%}
+      </div>
+    </div>
+  </section>
+{%- endif -%}
 
 {% schema %}
 {
   "name": "Featured products",
   "tag": "section",
   "settings": [
-    { "type": "text", "id": "eyebrow", "label": "Eyebrow", "default": "Selected for you" },
-    { "type": "text", "id": "title", "label": "Title", "default": "Featured products" },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow" },
+    { "type": "text", "id": "title", "label": "Heading", "default": "Featured products" },
+    { "type": "richtext", "id": "text", "label": "Text" },
     { "type": "collection", "id": "collection", "label": "Collection" },
-    { "type": "range", "id": "products_to_show", "min": 4, "max": 24, "step": 4, "label": "Products to show", "default": 8 },
-    { "type": "url", "id": "view_all", "label": "View-all URL" },
-    { "type": "checkbox", "id": "show_merch_tabs", "label": "Show merch tabs", "default": true },
-    { "type": "checkbox", "id": "enable_new", "label": "Enable new arrivals tab", "default": true },
-    { "type": "checkbox", "id": "enable_best", "label": "Enable best sellers tab", "default": true }
+    { "type": "checkbox", "id": "fallback_to_all", "label": "Use all products when no collection is selected", "default": true },
+    { "type": "range", "id": "products_to_show", "min": 4, "max": 24, "step": 2, "label": "Products to show", "default": 8 },
+    { "type": "select", "id": "columns_desktop", "label": "Desktop columns", "default": "4", "options": [{ "value": "3", "label": "3" }, { "value": "4", "label": "4" }, { "value": "5", "label": "5" }] },
+    { "type": "select", "id": "columns_mobile", "label": "Mobile columns", "default": "2", "options": [{ "value": "1", "label": "1" }, { "value": "2", "label": "2" }] },
+    { "type": "checkbox", "id": "show_view_all", "label": "Show collection link", "default": true },
+    { "type": "text", "id": "view_all_label", "label": "Collection link label", "default": "View all" }
   ],
   "presets": [{ "name": "Featured products" }]
 }

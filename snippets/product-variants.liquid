@@ -1,16 +1,16 @@
-<script id="VennixVariants" type="application/json">
+<script id="VennixVariants-{{ section.id }}" type="application/json">
 [
-  {%- for v in product.variants -%}
-  {
-    "id": {{ v.id }},
-    "title": {{ v.title | json }},
-    "options": [{%- for o in v.options -%}{{ o | json }}{%- unless forloop.last -%},{%- endunless -%}{%- endfor -%}],
-    "available": {{ v.available }},
-    "price": {{ v.price }},
-    "compare_at_price": {{ v.compare_at_price | default: 0 }},
-    "featured_media": {%- if v.featured_image -%}{"preview_image":"{{ v.featured_image | image_url: width: 1200 }}", "id":{{ v.featured_image.id }}}{%- else -%}null{%- endif -%}
-  }{%- unless forloop.last -%},{%- endunless -%}
+  {%- for variant in product.variants -%}
+    {
+      "id": {{ variant.id | json }},
+      "title": {{ variant.title | json }},
+      "options": {{ variant.options | json }},
+      "available": {{ variant.available | json }},
+      "price": {{ variant.price | json }},
+      "compare_at_price": {{ variant.compare_at_price | json }},
+      "sku": {{ variant.sku | json }},
+      "featured_media_id": {{ variant.featured_media.id | json }}
+    }{% unless forloop.last %},{% endunless %}
   {%- endfor -%}
 ]
 </script>
-{{ 'product.js' | asset_url | script_tag: defer: true }}

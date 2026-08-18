@@ -1,32 +1,36 @@
-<div class="container section">
-  <div class="newsletter-band reveal">
-    <div>
-      <small class="eyebrow">{{ section.settings.eyebrow | default: '10% off your first order' }}</small>
-      <h2>{{ section.settings.title | default: 'Get early access & private drops' }}</h2>
-      <p style="color:color-mix(in oklab,var(--color-fg) 78%,transparent);max-width:46ch;">{{ section.settings.subtitle | default: 'Shopping news, restocks, and product drops — straight to your inbox. No noise, ever.' }}</p>
-    </div>
-    {%- if section.settings.show_form != false -%}
-      <form class="field" action="/contact#newsletter" method="post" id="newsletter-form">
+<section class="section-space">
+  <div class="container">
+    <div class="newsletter-panel">
+      <div class="newsletter-copy">
+        {%- if section.settings.eyebrow != blank -%}<p class="eyebrow">{{ section.settings.eyebrow }}</p>{%- endif -%}
+        <h2>{{ section.settings.heading }}</h2>
+        {%- if section.settings.text != blank -%}<div class="rte">{{ section.settings.text }}</div>{%- endif -%}
+      </div>
+
+      {% form 'customer', id: 'NewsletterForm', class: 'newsletter-form newsletter-form--large' %}
         <input type="hidden" name="contact[tags]" value="newsletter">
-        <div class="input-group">
-          <input class="input" type="email" name="contact[email]" placeholder="you@email.com" required autocomplete="email">
-          <button type="submit" class="btn btn--primary">{{ section.settings.button_text | default: 'Subscribe' }}</button>
+        <label for="NewsletterEmail-{{ section.id }}">Email address</label>
+        <div class="newsletter-fields">
+          <input id="NewsletterEmail-{{ section.id }}" class="input" type="email" name="contact[email]" value="{% if customer %}{{ customer.email }}{% endif %}" autocomplete="email" autocapitalize="off" placeholder="Email address" required>
+          <button class="button button--primary" type="submit">{{ section.settings.button_label }}</button>
         </div>
-        <small class="small" style="color:var(--color-muted);">By subscribing you agree to receive marketing emails. Unsubscribe anytime.</small>
-      </form>
-    {%- endif -%}
+        {%- if form.posted_successfully? -%}<p class="form-message" role="status">Thanks for subscribing.</p>{%- endif -%}
+        {%- if form.errors -%}<div class="form-message form-message--error" role="alert">{{ form.errors | default_errors }}</div>{%- endif -%}
+      {% endform %}
+    </div>
   </div>
-</div>
+</section>
 
 {% schema %}
 {
   "name": "Newsletter",
+  "tag": "section",
   "settings": [
-    { "type": "text", "id": "eyebrow", "default": "10% off your first order" },
-    { "type": "text", "id": "title", "default": "Get early access & private drops" },
-    { "type": "textarea", "id": "subtitle", "default": "Shopping news, restocks, and product drops — straight to your inbox. No noise, ever." },
-    { "type": "text", "id": "button_text", "default": "Subscribe" },
-    { "type": "checkbox", "id": "show_form", "default": true }
-  ]
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow" },
+    { "type": "text", "id": "heading", "label": "Heading", "default": "Stay in the loop" },
+    { "type": "richtext", "id": "text", "label": "Text", "default": "<p>Product news and store updates, sent to your inbox.</p>" },
+    { "type": "text", "id": "button_label", "label": "Button label", "default": "Subscribe" }
+  ],
+  "presets": [{ "name": "Newsletter" }]
 }
 {% endschema %}

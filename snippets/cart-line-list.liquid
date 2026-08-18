@@ -1,22 +1,25 @@
 {%- for item in cart.items -%}
   <div class="cart-line" data-line-id="{{ item.key }}">
-    <a href="{{ item.url }}" class="cart-line-media">
-      {%- if item.image -%}<img src="{{ item.image | image_url: width: 200 }}" alt="{{ item.product.title | escape }}" loading="lazy">{%- endif -%}
+    <a class="cart-line-image" href="{{ item.url }}">
+      {%- if item.image != blank -%}{{ item.image | image_url: width: 240 | image_tag: widths: '120, 180, 240', sizes: '88px', loading: 'lazy', alt: item.product.title }}{%- endif -%}
     </a>
-    <div class="cart-line-info">
-      <a href="{{ item.url }}" class="cart-line-title">{{ item.product.title }}</a>
-      {%- if item.variant.title != 'Default Title' -%}
-        <small class="cart-line-variants">{{ item.variant.title }}</small>
-      {%- endif -%}
-      <div class="cart-line-controls">
-        <div class="qty-picker" data-cart-line-id="{{ item.key }}">
-          <button type="button" data-cart-qty="-1" aria-label="Decrease">−</button>
-          <input type="number" min="0" value="{{ item.quantity }}" data-cart-qty-input aria-label="Quantity">
-          <button type="button" data-cart-qty="1" aria-label="Increase">+</button>
+    <div class="cart-line-details">
+      <a class="cart-line-title" href="{{ item.url }}">{{ item.product.title }}</a>
+      {%- unless item.product.has_only_default_variant -%}<p class="cart-line-variant">{{ item.variant.title }}</p>{%- endunless -%}
+      {%- if item.selling_plan_allocation != blank -%}<p class="cart-line-variant">{{ item.selling_plan_allocation.selling_plan.name }}</p>{%- endif -%}
+      {%- for property in item.properties -%}{%- assign property_first = property.first | slice: 0 -%}{%- if property.last != blank and property_first != '_' -%}<p class="cart-line-property">{{ property.first }}: {{ property.last }}</p>{%- endif -%}{%- endfor -%}
+      <div class="cart-line-bottom">
+        <div class="quantity-picker quantity-picker--small" data-cart-line-id="{{ item.key }}">
+          <button type="button" data-cart-qty="-1" aria-label="Decrease {{ item.product.title | escape }} quantity">−</button>
+          <input type="number" min="0" value="{{ item.quantity }}" data-cart-qty-input aria-label="Quantity for {{ item.product.title | escape }}">
+          <button type="button" data-cart-qty="1" aria-label="Increase {{ item.product.title | escape }} quantity">+</button>
         </div>
-        <strong data-line-total>{{ item.final_line_price | money }}</strong>
+        <div class="cart-line-price">
+          {%- if item.original_line_price > item.final_line_price -%}<s>{{ item.original_line_price | money }}</s>{%- endif -%}
+          <strong data-line-total>{{ item.final_line_price | money }}</strong>
+        </div>
       </div>
-      <button type="button" class="cart-line-remove" data-cart-remove>Remove</button>
+      <a class="cart-line-remove" href="{{ item.url_to_remove }}" data-cart-remove>{{ 'cart.general.remove' | t }}</a>
     </div>
   </div>
 {%- endfor -%}

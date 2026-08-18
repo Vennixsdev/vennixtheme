@@ -1,26 +1,39 @@
 {%- liquid
-  assign og_title = page_title
-  assign og_description = page_description | default: shop.description | default: shop.name
+  assign og_title = page_title | default: shop.name
+  assign og_description = page_description | default: shop.description
+  assign og_type = 'website'
   assign og_image = settings.logo
+
+  if request.page_type == 'product'
+    assign og_type = 'product'
+    assign og_image = product.featured_media.preview_image
+  elsif request.page_type == 'article'
+    assign og_type = 'article'
+    assign og_image = article.image
+  elsif request.page_type == 'collection' and collection.image
+    assign og_image = collection.image
+  endif
 -%}
 <meta property="og:site_name" content="{{ shop.name | escape }}">
 <meta property="og:url" content="{{ canonical_url }}">
 <meta property="og:title" content="{{ og_title | escape }}">
-<meta property="og:type" content="website">
-<meta property="og:description" content="{{ og_description | escape }}">
+<meta property="og:type" content="{{ og_type }}">
+{%- if og_description != blank -%}
+  <meta property="og:description" content="{{ og_description | strip_html | escape }}">
+{%- endif -%}
 {%- if og_image != blank -%}
-<meta property="og:image" content="{{ og_image | image_url: width: 1200 }}">
-<meta property="og:image:width" content="1200">
-<meta property="og:image:height" content="630">
+  <meta property="og:image" content="https:{{ og_image | image_url: width: 1200 }}">
+  <meta property="og:image:width" content="1200">
 {%- endif -%}
 <meta name="twitter:card" content="summary_large_image">
 <meta name="twitter:title" content="{{ og_title | escape }}">
-<meta name="twitter:description" content="{{ og_description | escape }}">
-{%- if og_image != blank -%}
-<meta name="twitter:image" content="{{ og_image | image_url: width: 800 }}">
+{%- if og_description != blank -%}
+  <meta name="twitter:description" content="{{ og_description | strip_html | escape }}">
 {%- endif -%}
-{%- if template.name == 'product' -%}
-<meta property="og:type" content="product">
-<meta property="product:price:amount" content="{{ product.price | money_without_currency | strip_html | escape }}">
-<meta property="product:price:currency" content="{{ cart.currency.iso_code }}">
+{%- if request.page_type == 'product' -%}
+  <meta property="product:price:amount" content="{{ product.selected_or_first_available_variant.price | money_without_currency | strip_html }}">
+  <meta property="product:price:currency" content="{{ cart.currency.iso_code | default: shop.currency }}">
+  <script type="application/ld+json">{{ product | structured_data }}</script>
+{%- elsif request.page_type == 'article' -%}
+  <script type="application/ld+json">{{ article | structured_data }}</script>
 {%- endif -%}

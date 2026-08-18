@@ -1,24 +1,50 @@
-<div class="mobile-menu" data-mobile-menu data-overlay aria-hidden="true" aria-label="Mobile menu">
-  <div class="mobile-menu-panel">
+<div class="mobile-menu" id="MobileMenu-{{ menu_id }}" data-mobile-menu aria-hidden="true">
+  <button type="button" class="drawer-backdrop" data-mobile-close aria-label="{{ 'general.accessibility.close' | t }}"></button>
+  <div class="mobile-menu-panel" role="dialog" aria-modal="true" aria-label="Navigation" tabindex="-1">
     <div class="mobile-menu-head">
-      <strong>{{ shop.name }}</strong>
-      <button type="button" class="mobile-menu-close" data-mobile-close aria-label="Close menu">×</button>
+      <strong>{{ 'sections.header.menu' | t }}</strong>
+      <button type="button" class="icon-button" data-mobile-close aria-label="{{ 'general.accessibility.close' | t }}">
+        <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg>
+      </button>
     </div>
-    <ul>
-      {%- for link in linklists[section.settings.menu | default: 'main-menu'].links -%}
-        <li>
-          <a href="{{ link.url }}">{{ link.title }}</a>
-          {%- if link.links.size > 0 -%}
-            <ul style="padding-left:1rem;border-top:1px solid var(--color-border);">
-              {%- for child in link.links -%}
-                <li><a href="{{ child.url }}">{{ child.title }}</a></li>
-              {%- endfor -%}
-            </ul>
-          {%- endif -%}
-        </li>
-      {%- endfor -%}
-      <li><a href="{{ routes.account_url }}">Account</a></li>
-      <li><a href="mailto:{{ settings.support_email }}">Support</a></li>
-    </ul>
+
+    {%- if menu != blank -%}
+      <nav class="mobile-nav" aria-label="Mobile navigation">
+        <ul role="list">
+          {%- for link in menu.links -%}
+            <li>
+              {%- if link.links.size > 0 -%}
+                <details class="mobile-nav-group">
+                  <summary><span>{{ link.title }}</span><svg viewBox="0 0 12 8" width="12" height="8" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><path d="m1 1 5 5 5-5"/></svg></summary>
+                  <a class="mobile-nav-all" href="{{ link.url }}">View all {{ link.title }}</a>
+                  <ul role="list">
+                    {%- for child_link in link.links -%}
+                      <li>
+                        <a href="{{ child_link.url }}">{{ child_link.title }}</a>
+                        {%- if child_link.links.size > 0 -%}
+                          <ul class="mobile-nav-grandchildren" role="list">
+                            {%- for grandchild_link in child_link.links -%}
+                              <li><a href="{{ grandchild_link.url }}">{{ grandchild_link.title }}</a></li>
+                            {%- endfor -%}
+                          </ul>
+                        {%- endif -%}
+                      </li>
+                    {%- endfor -%}
+                  </ul>
+                </details>
+              {%- else -%}
+                <a class="mobile-nav-primary" href="{{ link.url }}"{% if link.current %} aria-current="page"{% endif %}>{{ link.title }}</a>
+              {%- endif -%}
+            </li>
+          {%- endfor -%}
+        </ul>
+      </nav>
+    {%- endif -%}
+
+    <div class="mobile-menu-utilities">
+      <a href="{{ routes.search_url }}">{{ 'general.search.title' | t }}</a>
+      {%- if shop.customer_accounts_enabled -%}<a href="{{ routes.account_url }}">{{ 'sections.header.account' | t }}</a>{%- endif -%}
+      {%- if settings.support_email != blank -%}<a href="mailto:{{ settings.support_email | escape }}">{{ settings.support_email }}</a>{%- endif -%}
+    </div>
   </div>
 </div>

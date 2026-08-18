@@ -1,80 +1,69 @@
-<div class="container section">
-  <h1 style="margin-bottom:1.5rem;">Your cart</h1>
+<div class="container cart-page section-space">
+  {% render 'breadcrumbs' %}
+  <h1>{{ 'cart.general.title' | t }}</h1>
 
   {%- if cart.item_count == 0 -%}
-    <div class="collection-empty">
-      <strong style="display:block;margin-bottom:.4rem;color:var(--color-fg);">Your cart is empty</strong>
-      <p style="font-size:.9rem;">Start adding products — your cart awaits.</p>
-      <a href="{{ collections.all.url }}" class="btn btn--primary" style="margin-top:1rem;">Continue shopping</a>
+    <div class="empty-state">
+      <h2>{{ 'cart.general.empty' | t }}</h2>
+      <a class="button button--primary" href="{{ collections.all.url }}">{{ 'cart.general.continue_shopping' | t }}</a>
     </div>
   {%- else -%}
-    <div class="cart-page">
-      <div class="cart-lines" data-cart-lines>
-        {%- for item in cart.items -%}
-          <div class="cart-line-box" data-line-id="{{ item.key }}">
-            <div class="cart-line-media">
-              {%- if item.image -%}<img src="{{ item.image | image_url: width: 200 }}" alt="{{ item.product.title | escape }}" loading="lazy">{%- endif -%}
-            </div>
-            <div class="cart-line-info" style="flex:1;display:flex;flex-direction:column;gap:.3rem;">
-              <a href="{{ item.url }}" class="cart-line-title">{{ item.product.title }}</a>
-              {%- if item.variant.title != 'Default Title' -%}
-                <small class="cart-line-variants">{{ item.variant.title }}</small>
-              {%- endif -%}
-              <div class="cart-line-controls">
-                <div class="qty-picker" data-cart-line-id="{{ item.key }}">
-                  <button type="button" data-cart-qty="-1" aria-label="Decrease">−</button>
-                  <input type="number" min="0" value="{{ item.quantity }}" data-cart-qty-input aria-label="Quantity">
-                  <button type="button" data-cart-qty="1" aria-label="Increase">+</button>
+    <form action="{{ routes.cart_url }}" method="post" id="CartPageForm">
+      <div class="cart-page-layout">
+        <div class="cart-page-lines" data-cart-lines>
+          {%- for item in cart.items -%}
+            <div class="cart-page-line" data-line-id="{{ item.key }}">
+              <a class="cart-line-image" href="{{ item.url }}">{%- if item.image != blank -%}{{ item.image | image_url: width: 320 | image_tag: widths: '160, 240, 320', sizes: '(max-width: 600px) 96px, 140px', loading: 'lazy', alt: item.product.title }}{%- endif -%}</a>
+              <div class="cart-line-details">
+                <a class="cart-line-title" href="{{ item.url }}">{{ item.product.title }}</a>
+                {%- unless item.product.has_only_default_variant -%}<p class="cart-line-variant">{{ item.variant.title }}</p>{%- endunless -%}
+                {%- if item.selling_plan_allocation != blank -%}<p class="cart-line-variant">{{ item.selling_plan_allocation.selling_plan.name }}</p>{%- endif -%}
+                <div class="cart-line-bottom">
+                  <div class="quantity-picker" data-cart-line-id="{{ item.key }}">
+                    <button type="button" data-cart-qty="-1" aria-label="Decrease {{ item.product.title | escape }} quantity">−</button>
+                    <input type="number" name="updates[]" min="0" value="{{ item.quantity }}" data-cart-qty-input aria-label="Quantity for {{ item.product.title | escape }}">
+                    <button type="button" data-cart-qty="1" aria-label="Increase {{ item.product.title | escape }} quantity">+</button>
+                  </div>
+                  <div class="cart-line-price">{%- if item.original_line_price > item.final_line_price -%}<s>{{ item.original_line_price | money }}</s>{%- endif -%}<strong>{{ item.final_line_price | money }}</strong></div>
                 </div>
-                <strong>{{ item.final_line_price | money }}</strong>
+                <a class="cart-line-remove" href="{{ item.url_to_remove }}" data-cart-remove>{{ 'cart.general.remove' | t }}</a>
               </div>
-              <button type="button" class="cart-line-remove" data-cart-remove>Remove</button>
             </div>
-          </div>
-        {%- endfor -%}
-      </div>
+          {%- endfor -%}
+        </div>
 
-      <aside class="cart-summary">
-        {%- if settings.free_shipping_bar -%}
-          <div data-shipping-bar>
-            {%- assign threshold = settings.free_shipping_threshold | times: 100 -%}
-            {%- assign pct = cart.total_price | times: 100 | divided_by: threshold | at_most: 100 -%}
-            <div class="shipping-progress"><div class="shipping-progress-bar" style="width: {{ pct }}%;"></div></div>
-            {%- if cart.total_price >= threshold -%}
-              <p class="shipping-progress-text">🎉 You get <strong>FREE shipping</strong>!</p>
-            {%- else -%}
-              {%- assign remaining = threshold | minus: cart.total_price -%}
-              <p class="shipping-progress-text">Add <strong>{{ remaining | money }}</strong> more for free shipping · {{ settings.free_shipping_threshold | money }} threshold</p>
+        <aside class="cart-summary">
+          {%- if settings.free_shipping_bar and settings.free_shipping_threshold != blank -%}
+            {%- assign shipping_threshold = settings.free_shipping_threshold | times: 100 -%}
+            {%- if shipping_threshold > 0 -%}
+              {%- assign shipping_percent = cart.total_price | times: 100.0 | divided_by: shipping_threshold | at_most: 100 -%}
+              <div class="shipping-progress-wrap" data-shipping-bar>
+                <div class="shipping-progress" role="progressbar" aria-label="Free shipping progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ shipping_percent | round }}"><span class="shipping-progress-value" style="width:{{ shipping_percent }}%"></span></div>
+                <p class="shipping-progress-text">{%- if cart.total_price >= shipping_threshold -%}{{ 'cart.free_shipping.progress_done' | t }}{%- else -%}{%- assign shipping_remaining = shipping_threshold | minus: cart.total_price -%}{{ 'cart.free_shipping.progress_made' | t: remaining: shipping_remaining | money }}{%- endif -%}</p>
+              </div>
             {%- endif -%}
-          </div>
-        {%- endif -%}
+          {%- endif -%}
 
-        <div class="cart-summary-row"><span>Subtotal</span><strong>{{ cart.items_subtotal_price | money }}</strong></div>
-        <div class="cart-summary-row"><small>Shipping</small><small>Calculated at checkout</small></div>
-        {%- if cart.taxes_included -%}
-          <div class="cart-summary-row"><small>Taxes</small><small>Included</small></div>
-        {%- endif -%}
-        <div class="cart-summary-row total"><span>Total</span><span>{{ cart.total_price | money }}</span></div>
+          <label for="CartNote">{{ 'cart.general.note' | t }}</label>
+          <textarea class="textarea" id="CartNote" name="note">{{ cart.note }}</textarea>
+          <div class="cart-subtotal"><span>{{ 'cart.general.subtotal' | t }}</span><strong>{{ cart.items_subtotal_price | money }}</strong></div>
+          <p class="cart-checkout-note">Shipping and taxes are calculated at checkout.</p>
+          <button type="submit" name="update" class="button button--secondary button--full">{{ 'cart.general.update' | t }}</button>
+          <button type="submit" name="checkout" class="button button--primary button--full">{{ 'cart.general.checkout' | t }}</button>
+          {%- if settings.show_payment_icons and shop.enabled_payment_types.size > 0 -%}<div class="payment-icons" aria-label="Enabled payment methods">{%- for type in shop.enabled_payment_types -%}{{ type | payment_type_svg_tag }}{%- endfor -%}</div>{%- endif -%}
+        </aside>
+      </div>
+    </form>
 
-        <form action="{{ routes.cart_url }}" method="post" novalidate>
-          <label class="field">
-            <span>Order note</span>
-            <textarea class="textarea" name="note" placeholder="Anything we should know?">{{ cart.note }}</textarea>
-          </label>
-          <button type="submit" name="checkout" class="btn btn--primary btn--block btn--lg">Checkout · {{ cart.total_price | money }}</button>
-        </form>
-
-        <a href="{{ collections.all.url }}" class="btn btn--text">← keep shopping</a>
-
-        {%- if settings.show_payment_icons -%}
-          <div class="footer-payment-icons" aria-label="Accepted payments">
-            {%- for type in shop.enabled_payment_types -%}
-              {{ type | payment_type_svg_tag }}
-            {%- endfor -%}
-          </div>
-        {%- endif -%}
-      </aside>
-    </div>
+    {%- if settings.show_cart_recommendations -%}
+      <section class="cart-page-recommendations cart-recommendations" data-cart-recommendations data-product-id="{{ cart.items.first.product.id }}">
+        <div class="section-heading"><div><h2>You may also like</h2></div></div>
+        <div class="cart-recommendations-grid" data-cart-recommendations-grid></div>
+      </section>
+    {%- endif -%}
   {%- endif -%}
 </div>
-{{ 'cart.js' | asset_url | script_tag: defer: true }}
+
+{% schema %}
+{ "name": "Cart", "tag": "section" }
+{% endschema %}
