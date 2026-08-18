@@ -1,7 +1,9 @@
-{%- liquid
-  assign enabled = section.settings.enabled
-  if enabled and section.settings.message != blank
--%}
+{%- comment -%}
+  A `{% liquid %}` block cannot leave an `if` open for a later `{% endif %}` —
+  Shopify raises "Liquid syntax error: 'if' tag was never closed".
+{%- endcomment -%}
+{%- assign enabled = section.settings.enabled -%}
+{%- if enabled and section.settings.message != blank -%}
 <div class="vannouncement" data-section-id="{{ section.id }}">
   <div class="container vannouncement-bar">
     {%- if section.settings.link != blank -%}

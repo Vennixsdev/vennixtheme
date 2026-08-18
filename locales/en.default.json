@@ -7,6 +7,7 @@
       "submit": "Search",
       "results": "Results for “{{ terms }}”",
       "no_results": "No matches for “{{ terms }}”",
+      "unavailable": "Search is unavailable right now",
       "suggestions": "Suggestions",
       "popular": "Popular searches",
       "view_all": "View all results"
@@ -27,6 +28,7 @@
       "quantity": "Quantity",
       "view_details": "View details",
       "quick_add": "Quick add",
+      "save_for_later": "Save for later",
       "from": "From {{ price }}",
       "save": "Save {{ amount }}",
       "in_stock": "In stock",

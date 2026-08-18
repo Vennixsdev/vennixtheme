@@ -12,10 +12,9 @@
   const $  = (s, c) => (c||document).querySelector(s);
   const $$ = (s, c) => Array.from((c||document).querySelectorAll(s));
 
-  const formatMoney = (cents) => {
-    try { return new Intl.NumberFormat('en', { style:'currency', currency: window.App?.AppContext?.settings?.currency || 'USD' }).format((cents||0)/100); }
-    catch (e) { return '$' + (cents/100).toFixed(2); }
-  };
+  const U = () => window.VennixUtils;
+  const esc = (v) => window.VennixUtils.escapeHtml(v);
+  const formatMoney = (cents) => window.VennixUtils.formatMoney(cents);
 
   window.ProductEngine = {
     init(app) {
@@ -30,7 +29,9 @@
     currentVariant() {
       const form = $('[data-product-form]');
       if (!form) return null;
-      const id = form.querySelector('[data-variant-id]').value;
+      const field = form.querySelector('[data-variant-id]');
+      if (!field) return null;
+      const id = field.value;
       return (window.__VARIANTS__ || []).find((v) => String(v.id) === String(id)) || null;
     },
     bindGallery() {
@@ -56,7 +57,7 @@
       $$('.variant-option,.variant-swatch').forEach((btn) => {
         btn.addEventListener('click', () => {
           const group = btn.closest('[data-option-index]');
-          const groupIndex = parseInt(group.dataset.optionIndex, 10);
+          if (!group) return;
           $$('[data-option-value]', group).forEach((b) => {
             b.setAttribute('aria-pressed','false');
             b.setAttribute('aria-checked','false');
@@ -77,7 +78,10 @@
       const list = window.__VARIANTS__ || [];
       const variant = list.find((v) => v.options.every((o, i) => opts[i] === o)) || list[0];
       const form = $('[data-product-form]');
-      if (form && variant) form.querySelector('[data-variant-id]').value = variant.id;
+      if (form && variant) {
+        const field = form.querySelector('[data-variant-id]');
+        if (field) field.value = variant.id;
+      }
 
       // update price + button label + image
       if (variant) {
@@ -86,31 +90,38 @@
         const button = $('[data-add-to-cart]');
         if (button) {
           button.disabled = !variant.available;
-          button.textContent = variant.available ? 'Add to cart' : 'Sold out';
+          button.textContent = variant.available
+            ? (U().t('addToCart') || 'Add to cart')
+            : (U().t('soldOut') || 'Sold out');
         }
-        if (variant.featured_media?.preview_image) {
+        // preview_image is an object ({ src, width, height }), not a string —
+        // string-concatenating it produced "[object Object]&width=1200".
+        const preview = variant.featured_media?.preview_image;
+        const src = typeof preview === 'string' ? preview : preview?.src;
+        if (src) {
           const main = $('[data-gallery-main] img');
-          if (main) main.src = `${variant.featured_media.preview_image}&width=1200`;
+          if (main) main.src = U().withParam(src, 'width', 1200);
         }
       }
     },
     renderPrice(variant) {
-      const sale = variant.compare_at_price > variant.price && variant.compare_at_price != null;
+      const sale = variant.compare_at_price != null && variant.compare_at_price > variant.price;
       const html = `
         <span class="price" data-price>
           ${sale
-            ? `<span class="price-current price-current--sale">${formatMoney(variant.price)}</span>
-               <span class="price-compare">${formatMoney(variant.compare_at_price)}</span>
-               <span class="badge badge--sale">Save ${formatMoney(variant.compare_at_price - variant.price)}</span>`
-            : `<span class="price-current">${formatMoney(variant.price)}</span>`}
+            ? `<span class="price-current price-current--sale">${esc(formatMoney(variant.price))}</span>
+               <span class="price-compare">${esc(formatMoney(variant.compare_at_price))}</span>
+               <span class="badge badge--sale">Save ${esc(formatMoney(variant.compare_at_price - variant.price))}</span>`
+            : `<span class="price-current">${esc(formatMoney(variant.price))}</span>`}
         </span>`;
       return html.trim();
     },
     bindQty() {
       $$('.qty-picker [data-qty]').forEach((b) => {
         b.addEventListener('click', () => {
-          const input = b.parentElement.querySelector('[data-qty-input]');
-          const delta = parseInt(b.dataset.qty, 10);
+          const input = b.parentElement?.querySelector('[data-qty-input]');
+          if (!input) return;
+          const delta = parseInt(b.dataset.qty, 10) || 0;
           const min = parseInt(input.min, 10) || 1;
           const next = Math.max(min, (parseInt(input.value, 10) || min) + delta);
           input.value = next;
@@ -133,6 +144,7 @@
       $$('[data-accordion-toggle]').forEach((head) => {
         head.addEventListener('click', () => {
           const row = head.closest('.accordion-row');
+          if (!row) return;
           const open = row.getAttribute('data-open') === 'true';
           row.setAttribute('data-open', (!open).toString());
         });
@@ -147,13 +159,16 @@
           const fd = new FormData(form);
           try {
             b.disabled = true;
-            const r = await fetch(window.Shopify?.routes?.root + 'cart/add.js', {
+            // `window.Shopify?.routes?.root + '...'` yielded "undefinedcart/add.js"
+            // whenever the Shopify global was absent.
+            const r = await fetch(U().routes().cartAddJs, {
               method: 'POST',
+              credentials: 'same-origin',
               headers: { 'X-Requested-With':'XMLHttpRequest' },
               body: fd
             });
             if (!r.ok) throw new Error('Add failed');
-            window.location.href = '/checkout';
+            window.location.href = U().routes().checkout;
           } catch (err) {
             console.warn(err);
             b.disabled = false;

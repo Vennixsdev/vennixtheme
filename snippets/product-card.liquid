@@ -12,11 +12,16 @@
   endif
 -%}
 <article class="product-card reveal" data-product-card data-product-id="{{ p.id }}">
-  <a class="product-card-media" href="{{ p.url }}" aria-label="{{ p.title | escape }}">
+  <div class="product-card-media">
+    {%- comment -%}
+      Overlay anchor instead of a wrapping <a>: buttons and forms are not valid
+      inside a link and were unreachable by keyboard/assistive tech.
+    {%- endcomment -%}
+    <a class="product-card-media-link" href="{{ p.url }}" aria-label="{{ p.title | escape }}"></a>
     <span class="product-card-badge-stack">
       {% render 'badge', product: p %}
     </span>
-    <button type="button" class="product-card-wishlist" aria-label="Save for later" aria-pressed="false">
+    <button type="button" class="product-card-wishlist" aria-label="{{ 'products.product.save_for_later' | t | default: 'Save for later' }}" aria-pressed="false">
       <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
     </button>
     {%- if featured_alt -%}
@@ -27,7 +32,7 @@
     {%- if hover_alt -%}
       <img class="alt" src="{{ hover_alt | image_url: width: 600 }}" alt="" loading="lazy" width="600" height="600" aria-hidden="true">
     {%- endif -%}
-    {%- if settings.show_quick_add and p.has_only_default_variant == false or settings.show_quick_add and p.available -%}
+    {%- if settings.show_quick_add and p.available -%}
       <div class="product-card-quick">
         {%- if is_unavailable -%}
           <a href="{{ p.url }}" class="btn btn--ghost btn--block">View</a>
@@ -42,7 +47,7 @@
         {%- endif -%}
       </div>
     {%- endif -%}
-  </a>
+  </div>
   <div class="product-card-body">
     {%- if p.vendor != blank -%}
       <small class="product-card-vendor">{{ p.vendor }}</small>

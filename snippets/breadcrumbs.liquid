@@ -1,7 +1,8 @@
-{%- liquid
-  if settings.show_breadcrumbs
-    assign crumb_count = 0
--%}
+{%- comment -%}
+  Same fix as announcement-bar: the `if` must open with its own tag so the
+  trailing `{% endif %}` matches. `crumb_count` was assigned but never used.
+{%- endcomment -%}
+{%- if settings.show_breadcrumbs -%}
 <nav class="crumbs" aria-label="Breadcrumb">
   <ol style="display:flex;gap:.4rem;flex-wrap:wrap;">
     <li><a href="{{ routes.root_url }}">Home</a></li>

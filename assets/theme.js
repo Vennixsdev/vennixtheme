@@ -14,6 +14,89 @@
   const $  = (sel, el) => (el || document).querySelector(sel);
   const $$ = (sel, el) => Array.from((el || document).querySelectorAll(sel));
 
+  /* ---------- Shared utilities (escaping, money, i18n, routes) ----------
+     Loaded before every other module so they can rely on window.VennixUtils.
+     ---------------------------------------------------------------------- */
+  const HTML_ENTITIES = { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' };
+
+  function ctx() {
+    try { return window.App?.AppContext || VennixUtils._ctx || {}; } catch (e) { return {}; }
+  }
+
+  const VennixUtils = {
+    _ctx: {},
+    /* Escape text destined for an HTML template literal. */
+    escapeHtml(value) {
+      if (value == null) return '';
+      return String(value).replace(/[&<>"']/g, (c) => HTML_ENTITIES[c]);
+    },
+    /* Escape a value used inside a double-quoted HTML attribute. */
+    escapeAttr(value) {
+      return VennixUtils.escapeHtml(value);
+    },
+    /* Only allow same-origin / relative URLs into href="" — blocks javascript: URIs. */
+    safeUrl(value) {
+      const raw = String(value == null ? '' : value).trim();
+      if (!raw) return '#';
+      if (/^(?:https?:|\/(?!\/)|#|\?)/i.test(raw)) return VennixUtils.escapeAttr(raw);
+      return '#';
+    },
+    /* Append a query param to a URL that may or may not already have one. */
+    withParam(url, key, value) {
+      if (!url) return '';
+      const sep = url.indexOf('?') === -1 ? '?' : '&';
+      return `${url}${sep}${encodeURIComponent(key)}=${encodeURIComponent(value)}`;
+    },
+    routes() {
+      const fromCtx = ctx().routes || {};
+      const fromShopify = (window.Shopify && window.Shopify.routes) || {};
+      const root = fromCtx.root || fromShopify.root || '/';
+      return {
+        root,
+        cart:        fromCtx.cart        || fromShopify.cart_url            || `${root}cart`,
+        cartAdd:     fromCtx.cartAdd     || fromShopify.cart_add_url        || `${root}cart/add`,
+        cartChange:  fromCtx.cartChange  || fromShopify.cart_change_url     || `${root}cart/change`,
+        cartJs:      `${root}cart.js`,
+        cartAddJs:   `${root}cart/add.js`,
+        cartChangeJs:`${root}cart/change.js`,
+        search:      fromCtx.search      || fromShopify.search_url          || `${root}search`,
+        collections: fromCtx.collections || fromShopify.collections_url     || `${root}collections/all`,
+        checkout:    `${root}checkout`
+      };
+    },
+    /* Translated string with {{ placeholder }} / __TOKEN__ substitution. */
+    t(key, replacements) {
+      const strings = ctx().strings || {};
+      let out = strings[key];
+      if (out == null) return '';
+      Object.keys(replacements || {}).forEach((k) => {
+        out = out.split(`__${k.toUpperCase()}__`).join(replacements[k]);
+        out = out.replace(new RegExp(`{{\\s*${k}\\s*}}`, 'g'), replacements[k]);
+      });
+      return out;
+    },
+    formatMoney(cents) {
+      const settings = ctx().settings || {};
+      const currency = settings.currency || ctx().shop?.currency || 'USD';
+      const locale   = settings.locale || document.documentElement.lang || 'en';
+      const amount   = (Number(cents) || 0) / 100;
+      try {
+        return new Intl.NumberFormat(locale, { style: 'currency', currency }).format(amount);
+      } catch (e) {
+        try {
+          return new Intl.NumberFormat('en', { style: 'currency', currency: 'USD' }).format(amount);
+        } catch (e2) { return '$' + amount.toFixed(2); }
+      }
+    },
+    /* Free-shipping threshold in cents, sourced from theme settings. */
+    freeShippingThreshold() {
+      const raw = (ctx().settings || {}).freeShippingThreshold;
+      const num = parseFloat(raw);
+      return Number.isFinite(num) && num > 0 ? Math.round(num * 100) : 0;
+    }
+  };
+  window.VennixUtils = VennixUtils;
+
   const App = {
     AppContext: {},
     modules: {},
@@ -29,18 +112,17 @@
       const node = document.getElementById('ShopifyAppContext');
       try { this.AppContext = node ? JSON.parse(node.textContent) : {}; }
       catch (e) { this.AppContext = {}; }
-      this.CSRF_TOKENS = {};
-      document.cookie.split(';').forEach((c) => {
-        const [k,v] = c.trim().split('=');
-        if (k && v) this.CSRF_TOKENS[k] = decodeURIComponent(v);
-      });
+      // Mirror onto the util module so helpers work before/independently of App.
+      window.VennixUtils._ctx = this.AppContext;
     },
     registerModules() {
       // Modules attach themselves to window.[name] when their scripts load.
       // We call their `init()` if it exists.
     },
     startModules() {
-      const order = ['MenuEngine','CartEngine','ProductEngine','CollectionEngine','SearchEngine','SupportEngine','RevealEngine','WishlistEngine','RecentlyViewedEngine'];
+      if (this._started) return;
+      this._started = true;
+      const order = ['MenuEngine','CartEngine','ProductEngine','CollectionEngine','SearchEngine','SupportEngine','RevealEngine'];
       order.forEach((name) => {
         const mod = window[name];
         if (mod && typeof mod.init === 'function') {
@@ -104,12 +186,7 @@
       });
     },
     formatMoney(cents) {
-      try {
-        return new Intl.NumberFormat(this.AppContext?.settings?.currency ? 'en' : 'en', {
-          style: 'currency',
-          currency: this.AppContext?.settings?.currency || 'USD'
-        }).format((cents || 0)/100);
-      } catch (e) { return '$' + (cents/100).toFixed(2); }
+      return window.VennixUtils.formatMoney(cents);
     },
     safeJSON(input) {
       try { return typeof input === 'string' ? JSON.parse(input) : input; } catch{ return {}; }
@@ -124,21 +201,11 @@
     },
   };
 
-  /* ---------- Reveal engine ---------- */
-  // Placeholder — wishlist & recently viewed mounted via script tags below.
-  window.WishlistEngine = { init(app) {
-    if (typeof window.VennixWishlist === 'undefined') {
-      // ensure script present
-    }
-  }};
-  window.RecentlyViewedEngine = { init(app) {
-    const node = document.getElementById('VennixRecentlyViewed');
-    if (!node) return;
-    try {
-      const items = JSON.parse(localStorage.getItem('vxn_recently_v1') || '[]');
-      // hydrate any cards we have
-    } catch {}
-  }};
+  /* ---------- Dead placeholder engines removed ----------
+     WishlistEngine / RecentlyViewedEngine previously registered empty init()
+     stubs that shadowed nothing and did no work. wishlist.js and
+     recently-viewed.js self-initialise on DOMContentLoaded instead.
+     ------------------------------------------------------ */
 
   /* ---------- Reveal engine ---------- */
   window.RevealEngine = {
@@ -235,9 +302,10 @@
         const fill = wrap.querySelector('[data-track-fill]');
         const minR  = wrap.querySelector('[data-range-min]');
         const maxR  = wrap.querySelector('[data-range-max]');
+        if (!minIn && !maxIn && !minR && !maxR) return;
         const sync = () => {
-          const lo = parseInt(minIn.value || minR.value, 10) || 0;
-          const hi = parseInt(maxIn.value || maxR.value, 10) || max;
+          const lo = parseInt((minIn && minIn.value) || (minR && minR.value), 10) || min;
+          const hi = parseInt((maxIn && maxIn.value) || (maxR && maxR.value), 10) || max;
           if (minR) minR.value = lo;
           if (maxR) maxR.value = hi;
           if (fill) {
@@ -264,7 +332,6 @@
       });
     },
     bindInViewAnimations() {
-      $$('.product-card.reveal').forEach((c) => c.classList.add('reveal'));
       if (!('IntersectionObserver' in window)) return;
       const io = new IntersectionObserver((entries) => {
         entries.forEach((en, i) => {

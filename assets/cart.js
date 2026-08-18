@@ -9,17 +9,20 @@
   const $  = (s, c) => (c||document).querySelector(s);
   const $$ = (s, c) => Array.from((c||document).querySelectorAll(s));
 
-  const SHOP_URL = (window.Shopify && window.Shopify.routes && window.Shopify.routes.root) || '/';
+  const U = () => window.VennixUtils;
+  const R = () => window.VennixUtils.routes();
+  const esc = (v) => window.VennixUtils.escapeHtml(v);
+  const url = (v) => window.VennixUtils.safeUrl(v);
 
   async function getCart() {
     try {
-      const r = await fetch(SHOP_URL + 'cart.js', { credentials: 'same-origin', headers: { 'X-Requested-With':'XMLHttpRequest' } });
+      const r = await fetch(R().cartJs, { credentials: 'same-origin', headers: { 'X-Requested-With':'XMLHttpRequest' } });
       return await r.json();
     } catch (e) { console.warn('[Vennix] cart fetch failed', e); return null; }
   }
   async function changeQty(key, qty) {
     try {
-      const r = await fetch(SHOP_URL + 'cart/change.js', {
+      const r = await fetch(R().cartChangeJs, {
         method:'POST',
         credentials:'same-origin',
         headers:{ 'Content-Type':'application/json', 'X-Requested-With':'XMLHttpRequest' },
@@ -29,7 +32,7 @@
     } catch (e) { return null; }
   }
   async function addItem(id, qty, properties) {
-    const r = await fetch(SHOP_URL + 'cart/add.js', {
+    const r = await fetch(R().cartAddJs, {
       method:'POST',
       credentials:'same-origin',
       headers:{ 'Content-Type':'application/json', 'Accept':'application/javascript', 'X-Requested-With':'XMLHttpRequest' },
@@ -38,7 +41,7 @@
     return r.json();
   }
   async function addItemForm(formData) {
-    const r = await fetch(SHOP_URL + 'cart/add.js', {
+    const r = await fetch(R().cartAddJs, {
       method:'POST',
       credentials:'same-origin',
       body: formData
@@ -47,10 +50,7 @@
     return r.json();
   }
 
-  const formatMoney = (cents) => {
-    try { return new Intl.NumberFormat('en', { style:'currency', currency: window.App?.AppContext?.settings?.currency || 'USD' }).format((cents||0)/100); }
-    catch (e) { return '$' + (cents/100).toFixed(2); }
-  };
+  const formatMoney = (cents) => window.VennixUtils.formatMoney(cents);
 
   const CartEngine = {
     drawOpen: false,
@@ -61,10 +61,10 @@
       this.bindDrawerClose();
       this.bindPage();
       this.bindUpsell();
-      window.addEventListener('vxn:cart:add',     () => this.refreshCart('flash','Added — keep browsing'));
+      window.addEventListener('vxn:cart:add',     () => this.refreshCart('flash', U().t('added') || 'Added'));
       window.addEventListener('vxn:cart:changed', () => this.refreshCart());
       // Listen for cross-component updates
-      document.addEventListener('vxn:cart:add',     (e) => this.refreshCart('flash', e.detail?.label || 'Added'));
+      document.addEventListener('vxn:cart:add',     (e) => this.refreshCart('flash', e.detail?.label || U().t('added') || 'Added'));
       document.addEventListener('vxn:cart:changed', () => this.refreshCart());
       this.refreshCart();
     },
@@ -81,6 +81,10 @@
       document.body.style.overflow = '';
     },
     bindAddToCart() {
+      // Guard: init() and the DOMContentLoaded hook can both reach this.
+      // Without the flag every listener was attached twice (double add-to-cart).
+      if (this._addToCartBound) return;
+      this._addToCartBound = true;
       // pages with the traditional form submit
       $$('[data-product-form]').forEach((form) => {
         form.addEventListener('submit', async (e) => {
@@ -91,14 +95,13 @@
           try {
             const r = await addItemForm(fd);
             this.openDrawer();
-            this.refreshCart('flash', `“${r.product_title}” added`);
+            this.refreshCart('flash', U().t('added') || 'Added');
           } catch (err) {
             console.warn(err);
           }
         });
       });
       // quick add on collection grid
-      $$(document).forEach(); // (no-op placeholder)
       document.addEventListener('click', async (e) => {
         const quick = e.target.closest('[data-quick-add]');
         if (!quick) return;
@@ -109,7 +112,7 @@
           const fd = new FormData(form);
           await addItemForm(fd);
           this.openDrawer();
-          this.refreshCart('flash','Added — keep browsing');
+          this.refreshCart('flash', U().t('added') || 'Added');
         } catch (err) { console.warn(err); }
       });
     },
@@ -128,12 +131,17 @@
       });
     },
     bindPage() {
-      // cart page lines
+      // Called again after every drawer re-render — mark nodes so persistent
+      // cart-page rows don't accumulate a listener per refresh.
       $$('[data-cart-qty]').forEach((b) => {
+        if (b.dataset.vxnBound === '1') return;
+        b.dataset.vxnBound = '1';
         b.addEventListener('click', async () => {
           const picker = b.closest('[data-cart-line-id]');
+          if (!picker) return;
           const id  = picker.dataset.cartLineId;
           const inp = picker.querySelector('[data-cart-qty-input]');
+          if (!id || !inp) return;
           const next = Math.max(0, (parseInt(inp.value, 10) || 0) + (parseInt(b.dataset.cartQty, 10) || 0));
           inp.value = next;
           const updated = await changeQty(id, next);
@@ -142,6 +150,8 @@
         });
       });
       $$('[data-cart-remove]').forEach((b) => {
+        if (b.dataset.vxnBound === '1') return;
+        b.dataset.vxnBound = '1';
         b.addEventListener('click', async () => {
           const line = b.closest('[data-line-id]');
           const id   = line?.dataset.lineId;
@@ -160,7 +170,7 @@
         const vid  = card?.dataset.variantId;
         if (!vid) return;
         await addItem(vid, 1);
-        this.refreshCart('flash','Added — keep browsing');
+        this.refreshCart('flash', U().t('added') || 'Added');
       });
     },
     async refreshCart(flash, flashLabel) {
@@ -168,9 +178,16 @@
       if (!cart) return;
       this.updateBubbles(cart);
       this.renderDrawer(cart);
+      // The cart page used to call location.reload() on EVERY refresh — including
+      // the one fired during init() — which reloaded the page in a loop.
+      // Only reload when a mutation actually changed the line count.
       const lines = $$('[data-cart-lines]');
-      if (lines.length) location.reload(); // simple re-render path for the cart page
-      if (flash) this.toast(flashLabel);
+      if (lines.length && this._lastCount != null && this._lastCount !== cart.item_count) {
+        location.reload();
+        return;
+      }
+      this._lastCount = cart.item_count;
+      if (flash && flashLabel) this.toast(flashLabel);
     },
     updateBubbles(cart) {
       $$('[data-cart-count]').forEach((b) => {
@@ -189,20 +206,20 @@
       body.innerHTML = cart.items.length === 0
         ? `<div class="cart-drawer-empty">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-            <strong style="display:block;margin-bottom:.4rem;color:var(--color-fg);">Your cart is empty</strong>
+            <strong style="display:block;margin-bottom:.4rem;color:var(--color-fg);">${esc(U().t('cartEmpty') || 'Your cart is empty')}</strong>
             <p style="font-size:.9rem;">Browse our products — your finds await here.</p>
-            <a href="${window.Shopify?.routes?.collections_url || '/collections/all'}" class="btn btn--ghost" style="margin-top:1rem;" data-cart-close>Continue shopping</a>
+            <a href="${url(R().collections)}" class="btn btn--ghost" style="margin-top:1rem;" data-cart-close>${esc(U().t('continueShopping') || 'Continue shopping')}</a>
           </div>`
         : cart.items.map((item) => `
-          <div class="cart-line" data-line-id="${item.key}">
-            <a href="${item.url}" class="cart-line-media">${item.image ? `<img src="${item.image.replace(/width=\d+/, 'width=200')}" alt="" loading="lazy">` : ''}</a>
+          <div class="cart-line" data-line-id="${esc(item.key)}">
+            <a href="${url(item.url)}" class="cart-line-media">${item.image ? `<img src="${esc(String(item.image).replace(/width=\d+/, 'width=200'))}" alt="" loading="lazy">` : ''}</a>
             <div class="cart-line-info">
-              <a href="${item.url}" class="cart-line-title">${item.product_title}</a>
-              ${item.variant_title && item.variant_title !== 'Default Title' ? `<small class="cart-line-variants">${item.variant_title}</small>` : ''}
+              <a href="${url(item.url)}" class="cart-line-title">${esc(item.product_title)}</a>
+              ${item.variant_title && item.variant_title !== 'Default Title' ? `<small class="cart-line-variants">${esc(item.variant_title)}</small>` : ''}
               <div class="cart-line-controls">
-                <div class="qty-picker" data-cart-line-id="${item.key}">
+                <div class="qty-picker" data-cart-line-id="${esc(item.key)}">
                   <button type="button" data-cart-qty="-1" aria-label="Decrease">−</button>
-                  <input type="number" min="0" value="${item.quantity}" data-cart-qty-input aria-label="Quantity">
+                  <input type="number" min="0" value="${esc(item.quantity)}" data-cart-qty-input aria-label="Quantity">
                   <button type="button" data-cart-qty="1" aria-label="Increase">+</button>
                 </div>
                 <strong data-line-total>${formatMoney(item.final_line_price)}</strong>
@@ -212,26 +229,29 @@
           </div>
         `).join('');
       if (foot) foot.style.display = cart.items.length === 0 ? 'none' : '';
+      // Drawer markup is replaced wholesale, so its listeners must be re-bound;
+      // bindPage() is delegation-safe and only touches freshly rendered nodes.
       this.bindPage();
       this.updateShippingBar(cart);
     },
     updateShippingBar(cart) {
       const bars = $$('[data-shipping-bar], [data-shipping-bar-drawer]');
+      if (!bars.length) return;
+      // Previously hardcoded to 75 via `parseInt(money_format)*0 + 75`, ignoring
+      // settings.free_shipping_threshold and disagreeing with the Liquid render.
+      const t = U().freeShippingThreshold();
+      if (!t) return;
       bars.forEach((bar) => {
-        const threshold = (parseInt((window.App?.AppContext?.shop?.money_format) || 0)*0 + 75) * 100;
-        const t = threshold;
+        const txt  = bar.querySelector('.shipping-progress-text');
+        const fill = bar.querySelector('.shipping-progress-bar');
         if (cart.total_price >= t) {
-          bar.outerHTML = bar.outerHTML.replace(/<div class="shipping-progress">[\s\S]*?<\/div>/, `<div class="shipping-progress"><div class="shipping-progress-bar" style="width:100%;"></div></div>`).replace(/Add.*for free shipping/, '🎉 You get <strong>FREE shipping</strong>!');
-          // simply patch text
-          const txt = bar.querySelector('.shipping-progress-text');
-          if (txt) txt.innerHTML = '🎉 You get <strong>FREE shipping</strong>!';
-          const fill = bar.querySelector('.shipping-progress-bar');
+          if (txt) txt.textContent = U().t('freeShippingDone') || 'You get FREE shipping!';
           if (fill) fill.style.width = '100%';
         } else {
-          const txt = bar.querySelector('.shipping-progress-text');
-          const fill = bar.querySelector('.shipping-progress-bar');
-          if (txt) txt.innerHTML = `Add <strong>${formatMoney(t - cart.total_price)}</strong> more for free shipping`;
-          if (fill) fill.style.width = (cart.total_price / t * 100).toFixed(0) + '%';
+          const remaining = formatMoney(t - cart.total_price);
+          if (txt) txt.textContent = U().t('freeShippingProgress', { remaining, amount: remaining })
+                                     || `Add ${remaining} more for free shipping`;
+          if (fill) fill.style.width = Math.max(0, Math.min(100, (cart.total_price / t) * 100)).toFixed(0) + '%';
         }
       });
     },
@@ -259,7 +279,7 @@
     close:  () => CartEngine.closeDrawer(),
     refresh: () => CartEngine.refreshCart(),
   };
-  // Initialise once DOM is ready
+  // theme.js startModules() owns initialisation. The old extra
+  // DOMContentLoaded -> bindAddToCart() call double-bound every form.
   window.CartEngine = CartEngine;
-  document.addEventListener('DOMContentLoaded', () => CartEngine.bindAddToCart());
 })();
