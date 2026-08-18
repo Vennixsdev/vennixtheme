@@ -1,0 +1,83 @@
+name: Theme validation
+
+on:
+  push:
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  theme-check:
+    name: Theme Check
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Shopify Theme Check
+        uses: shopify/theme-check-action@v2
+        with:
+          theme_root: '.'
+
+  json-syntax:
+    name: JSON syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Parse theme JSON
+        run: |
+          python3 - <<'PY'
+          import json
+          import pathlib
+          import sys
+
+          roots = [
+              pathlib.Path('config'),
+              pathlib.Path('locales'),
+              pathlib.Path('sections'),
+              pathlib.Path('templates'),
+          ]
+          files = []
+          for root in roots:
+              if root.exists():
+                  files.extend(sorted(root.glob('*.json')))
+
+          failed = False
+          for path in files:
+              try:
+                  json.loads(path.read_text())
+                  print(f'OK  {path}')
+              except Exception as error:
+                  failed = True
+                  print(f'FAIL {path}: {error}', file=sys.stderr)
+
+          if not files:
+              print('No JSON files found', file=sys.stderr)
+              sys.exit(1)
+          sys.exit(1 if failed else 0)
+          PY
+
+  javascript-syntax:
+    name: JavaScript syntax
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Setup Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+      - name: Check JavaScript syntax
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          files=(assets/*.js)
+          if [ ${#files[@]} -eq 0 ]; then
+            echo "No JavaScript files found" >&2
+            exit 1
+          fi
+          for file in "${files[@]}"; do
+            node --check "$file"
+            echo "OK  $file"
+          done
