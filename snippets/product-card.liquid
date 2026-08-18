@@ -1,65 +1,68 @@
 {%- liquid
-  assign p = product | default: card_product
-  assign featured_alt = p.featured_image
-  assign hover_alt = null
-  assign imgs = p.images | default: empty
-  if imgs.size > 1
-    assign hover_alt = imgs[1]
+  assign card_product = product | default: card_product
+  assign featured_image = card_product.featured_media.preview_image
+  assign secondary_image = blank
+  if settings.show_secondary_image and card_product.media.size > 1
+    for card_media in card_product.media
+      if card_media.media_type == 'image' and card_media.id != card_product.featured_media.id
+        assign secondary_image = card_media.preview_image
+        break
+      endif
+    endfor
   endif
-  assign is_unavailable = false
-  if p.available == false
-    assign is_unavailable = true
-  endif
+  assign image_loading = loading | default: 'lazy'
+  assign card_alt = featured_image.alt | default: card_product.title
 -%}
-<article class="product-card reveal" data-product-card data-product-id="{{ p.id }}">
-  <div class="product-card-media">
-    {%- comment -%}
-      Overlay anchor instead of a wrapping <a>: buttons and forms are not valid
-      inside a link and were unreachable by keyboard/assistive tech.
-    {%- endcomment -%}
-    <a class="product-card-media-link" href="{{ p.url }}" aria-label="{{ p.title | escape }}"></a>
-    <span class="product-card-badge-stack">
-      {% render 'badge', product: p %}
-    </span>
-    <button type="button" class="product-card-wishlist" aria-label="{{ 'products.product.save_for_later' | t | default: 'Save for later' }}" aria-pressed="false">
-      <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20.84 4.61a5.5 5.5 0 0 0-7.78 0L12 5.67l-1.06-1.06a5.5 5.5 0 0 0-7.78 7.78l1.06 1.06L12 21.23l7.78-7.78 1.06-1.06a5.5 5.5 0 0 0 0-7.78z"/></svg>
-    </button>
-    {%- if featured_alt -%}
-      <img class="primary" src="{{ featured_alt | image_url: width: 600 }}" alt="{{ p.title | escape }}" loading="lazy" width="600" height="600">
-    {%- else -%}
-      <div class="primary" style="display:grid;place-items:center;width:100%;height:100%;background:color-mix(in oklab,var(--color-surface-2) 80%,transparent);color:var(--color-muted);font-size:.85rem;">{{ p.title }}</div>
+<article class="product-card{% if settings.enable_reveal_motion %} reveal{% endif %}" data-product-card data-product-id="{{ card_product.id }}">
+  <div class="product-card-media{% if secondary_image != blank %} has-secondary-image{% endif %}">
+    <a class="product-card-image-link" href="{{ card_product.url }}" aria-label="{{ card_product.title | escape }}">
+      {%- if featured_image != blank -%}
+        {{ featured_image | image_url: width: 1000 | image_tag: widths: '220, 320, 450, 600, 800, 1000', sizes: '(max-width: 749px) 50vw, (max-width: 1199px) 33vw, 25vw', loading: image_loading, class: 'product-card-image product-card-image--primary', alt: card_alt }}
+        {%- if secondary_image != blank -%}
+          {{ secondary_image | image_url: width: 1000 | image_tag: widths: '220, 320, 450, 600, 800, 1000', sizes: '(max-width: 749px) 50vw, (max-width: 1199px) 33vw, 25vw', loading: 'lazy', class: 'product-card-image product-card-image--secondary', alt: '' }}
+        {%- endif -%}
+      {%- else -%}
+        <span class="media-placeholder" aria-hidden="true"></span>
+      {%- endif -%}
+    </a>
+
+    {%- if settings.show_card_badges -%}<div class="product-card-badges">{% render 'badge', product: card_product %}</div>{%- endif -%}
+
+    {%- if settings.enable_wishlist -%}
+      <button type="button" class="product-card-wishlist" aria-label="{{ 'products.product.save_for_later' | t }}: {{ card_product.title | escape }}" aria-pressed="false">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="1.7" aria-hidden="true"><path d="M20.8 5.8a5.2 5.2 0 0 0-7.4 0L12 7.2l-1.4-1.4a5.2 5.2 0 0 0-7.4 7.4L12 22l8.8-8.8a5.2 5.2 0 0 0 0-7.4Z"/></svg>
+      </button>
     {%- endif -%}
-    {%- if hover_alt -%}
-      <img class="alt" src="{{ hover_alt | image_url: width: 600 }}" alt="" loading="lazy" width="600" height="600" aria-hidden="true">
-    {%- endif -%}
-    {%- if settings.show_quick_add and p.available -%}
-      <div class="product-card-quick">
-        {%- if is_unavailable -%}
-          <a href="{{ p.url }}" class="btn btn--ghost btn--block">View</a>
-        {%- elsif p.has_only_default_variant -%}
+
+    {%- if settings.show_quick_add -%}
+      <div class="product-card-quick-add">
+        {%- if card_product.available and card_product.has_only_default_variant -%}
           <form method="post" action="{{ routes.cart_add_url }}" class="quick-add-form">
-            <input type="hidden" name="id" value="{{ p.variants.first.id }}">
+            <input type="hidden" name="form_type" value="product">
+            <input type="hidden" name="utf8" value="✓">
+            <input type="hidden" name="id" value="{{ card_product.selected_or_first_available_variant.id }}">
             <input type="hidden" name="quantity" value="1">
-            <button type="submit" class="btn btn--primary btn--block" data-quick-add>{{ 'products.product.quick_add' | t }}</button>
+            <button type="submit" class="button button--primary button--small" data-quick-add>{{ 'products.product.quick_add' | t }}</button>
           </form>
+        {%- elsif card_product.available -%}
+          <a class="button button--primary button--small" href="{{ card_product.url }}">{{ 'products.product.choose_options' | t }}</a>
         {%- else -%}
-          <a href="{{ p.url }}" class="btn btn--primary btn--block">{{ 'products.product.quick_add' | t }}</a>
+          <a class="button button--secondary button--small" href="{{ card_product.url }}">{{ 'products.product.view_details' | t }}</a>
         {%- endif -%}
       </div>
     {%- endif -%}
   </div>
-  <div class="product-card-body">
-    {%- if p.vendor != blank -%}
-      <small class="product-card-vendor">{{ p.vendor }}</small>
+
+  <div class="product-card-content">
+    {%- if settings.show_card_vendor and card_product.vendor != blank -%}<p class="product-card-vendor">{{ card_product.vendor }}</p>{%- endif -%}
+    <h3 class="product-card-title"><a href="{{ card_product.url }}">{{ card_product.title }}</a></h3>
+    {% render 'price', product: card_product %}
+    {%- if settings.show_card_availability -%}<p class="product-card-availability{% unless card_product.available %} is-unavailable{% endunless %}">{% if card_product.available %}In stock{% else %}Sold out{% endif %}</p>{%- endif -%}
+    {%- if card_product.metafields.reviews.rating.value != blank -%}
+      <p class="product-rating" aria-label="{{ card_product.metafields.reviews.rating.value }} out of {{ card_product.metafields.reviews.rating.value.scale_max }}">
+        <span aria-hidden="true">★</span> {{ card_product.metafields.reviews.rating.value }}
+        {%- if card_product.metafields.reviews.rating_count != blank -%}<span>({{ card_product.metafields.reviews.rating_count }})</span>{%- endif -%}
+      </p>
     {%- endif -%}
-    <h3 class="product-card-title"><a href="{{ p.url }}">{{ p.title }}</a></h3>
-    <div class="product-card-foot">
-      {% render 'price', product: p %}
-      {%- if p.metafields.reviews.rating != blank -%}
-        <span class="product-card-rating" aria-label="{{ p.metafields.reviews.rating }} out of 5">
-          ★ {{ p.metafields.reviews.rating }} ({{ p.metafields.reviews.rating_count | default: 0 }})
-        </span>
-      {%- endif -%}
-    </div>
   </div>
 </article>

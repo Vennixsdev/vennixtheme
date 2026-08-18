@@ -1,192 +1,154 @@
-/* ============================================================
-   VennixStore Elite — Predictive search + on-page search engine
-   ============================================================ */
 (function () {
   'use strict';
-  const $  = (s, c) => (c||document).querySelector(s);
-  const $$ = (s, c) => Array.from((c||document).querySelectorAll(s));
-  const U   = () => window.VennixUtils;
-  const esc = (v) => window.VennixUtils.escapeHtml(v);
-  const url = (v) => window.VennixUtils.safeUrl(v);
-  const SHOP = () => window.VennixUtils.routes().root;
 
-  const formatMoney = (cents) => window.VennixUtils.formatMoney(cents);
+  const $ = (selector, context = document) => context.querySelector(selector);
+  const $$ = (selector, context = document) => Array.from(context.querySelectorAll(selector));
+  let abortController;
+  let debounceTimer;
 
-  function debounce(fn, ms) {
-    let timer;
-    return function (...args) {
-      clearTimeout(timer);
-      timer = setTimeout(() => fn.apply(this, args), ms);
-    };
-  }
+  function context() { return window.VennixUtils; }
 
   const SearchEngine = {
-    init(app) {
-      this.app = app;
-      this.bindHeaders();
-      // 'vxn:boot' fired again on top of the direct call, double-binding openers.
-      this.bindOpeners();
+    init() {
+      this.mount = $('#PredictiveSearchMount');
+      this.dialog = $('[data-predictive-dialog]', this.mount || document);
+      this.input = $('[data-predictive-input]', this.mount || document);
+      this.results = $('[data-predictive-body]', this.mount || document);
+      this.viewAll = $('[data-search-view-all]', this.mount || document);
+      if (!this.mount || !this.dialog || !this.input || !this.results) return;
+      this.initialResults = this.results.innerHTML;
+      this.bind();
     },
-    bindOpeners() {
-      $$('[data-search-open]').forEach((btn) => {
-        if (btn.dataset.vxnBound === '1') return;
-        btn.dataset.vxnBound = '1';
-        btn.addEventListener('click', (e) => {
-          e.preventDefault();
-          this.openDrawer();
-        });
+
+    bind() {
+      $$('[data-search-open]').forEach((button) => {
+        if (button.dataset.bound) return;
+        button.dataset.bound = 'true';
+        button.addEventListener('click', () => this.open(button));
       });
-      $$('[data-search-close]').forEach((btn) => {
-        if (btn.dataset.vxnBound === '1') return;
-        btn.dataset.vxnBound = '1';
-        btn.addEventListener('click', () => this.closeDrawer());
+      $$('[data-search-close]', this.mount).forEach((button) => button.addEventListener('click', () => this.close()));
+      this.mount.addEventListener('click', (event) => { if (event.target === this.mount) this.close(); });
+      this.input.addEventListener('input', () => {
+        clearTimeout(debounceTimer);
+        const term = this.input.value.trim();
+        debounceTimer = setTimeout(() => this.predict(term), 180);
+      });
+      this.input.addEventListener('keydown', (event) => this.onInputKeydown(event));
+      this.dialog.addEventListener('keydown', (event) => {
+        if (event.key === 'Escape') { this.close(); return; }
+        const options = $$('[role="option"]', this.results);
+        const currentIndex = options.indexOf(document.activeElement);
+        if (currentIndex >= 0 && (event.key === 'ArrowDown' || event.key === 'ArrowUp')) {
+          event.preventDefault();
+          const direction = event.key === 'ArrowDown' ? 1 : -1;
+          const nextIndex = (currentIndex + direction + options.length) % options.length;
+          this.activeIndex = nextIndex;
+          options[nextIndex].focus();
+          return;
+        }
+        window.VennixA11y?.trap(event, this.dialog);
       });
     },
-    ensurePanel() {
-      let mount = $('#PredictiveSearchMount');
-      if (!mount) return null;
-      if (!mount.firstElementChild) {
-        mount.innerHTML = `
-          <div class="predictive-search-panel" data-overlay role="dialog" aria-label="Predictive search">
-            <div class="predictive-search-input">
-              <svg viewBox="0 0 24 24" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="8"/><line x1="21" y1="21" x2="16.65" y2="16.65"/></svg>
-              <input type="search" placeholder="Search products, collections, articles…" data-predictive-input autocomplete="off">
-              <button type="button" class="overlay-close" data-search-close aria-label="Close">×</button>
-            </div>
-            <div class="predictive-search-body" data-predictive-body></div>
-            <div class="predictive-search-footer">
-              <small>Type to search · press ESC to close</small>
-              <a href="${routesAll()['search']}">View all results →</a>
-            </div>
-          </div>`;
-        // bind
-        const input = mount.querySelector('[data-predictive-input]');
-        if (!input) return mount;
-        input.addEventListener('input', debounce((e) => this.predict(e.target.value), 160));
-        input.addEventListener('keydown', (e) => {
-          if (e.key === 'Enter') {
-            location.href = U().withParam(routesAll().search, 'q', input.value);
-          }
-        });
-      }
-      return mount;
+
+    open(opener) {
+      this.opener = opener || document.activeElement;
+      this.mount.setAttribute('aria-hidden', 'false');
+      document.body.classList.add('drawer-open');
+      requestAnimationFrame(() => this.input.focus());
     },
-    openDrawer() {
-      const mount = this.ensurePanel();
-      if (!mount) return;
-      mount.setAttribute('aria-hidden','false');
-      const inp = mount.querySelector('[data-predictive-input]');
-      requestAnimationFrame(() => inp?.focus());
-      document.body.style.overflow = 'hidden';
-      // Was re-registering a new keydown handler on every open (listener leak).
-      if (!this.escClose) {
-        this.escClose = (e) => { if (e.key === 'Escape') this.closeDrawer(); };
-        document.addEventListener('keydown', this.escClose);
-      }
+
+    close() {
+      this.mount.setAttribute('aria-hidden', 'true');
+      this.input.setAttribute('aria-expanded', 'false');
+      document.body.classList.remove('drawer-open');
+      this.opener?.focus();
     },
-    closeDrawer() {
-      const mount = $('#PredictiveSearchMount');
-      if (!mount) return;
-      mount.setAttribute('aria-hidden','true');
-      document.body.style.overflow = '';
-    },
-    bindHeaders() { /* placeholder for header search */ },
+
     async predict(term) {
-      const body = $('[data-predictive-body]');
-      if (!term || term.length < 2) {
-        body.innerHTML = `
-          <div class="predictive-search-section">
-            <h4>Try searching</h4>
-            <div style="padding:0 .8rem;display:flex;gap:.4rem;flex-wrap:wrap;">
-              ${['Hoodies','Sneakers','Outerwear','Sale'].map((t) => `<a class="icon-pill" href="${esc(U().withParam(routesAll().search, 'q', t))}">${esc(t)}</a>`).join('')}
-            </div>
-          </div>`;
+      this.viewAll.hidden = !term;
+      if (term) this.viewAll.href = `${context().routes().search}?q=${encodeURIComponent(term)}`;
+      if (term.length < 2) {
+        this.results.innerHTML = this.initialResults;
+        this.input.setAttribute('aria-expanded', 'false');
         return;
       }
-      const types = [
-        window.App?.AppContext?.settings?.enable_p_type_products !== false ? 'product' : null,
-        window.App?.AppContext?.settings?.enable_p_type_collections ? 'collection' : null,
-        window.App?.AppContext?.settings?.enable_p_type_pages ? 'page' : null,
-        window.App?.AppContext?.settings?.enable_p_type_articles ? 'article' : null,
-      ].filter(Boolean).join(',') || 'product';
-      const endpoint = `${SHOP()}search/suggest.json?q=${encodeURIComponent(term)}&resources[type]=${types}&resources[limit]=6`;
+
+      abortController?.abort();
+      abortController = new AbortController();
+      this.results.innerHTML = `<p class="predictive-hint">${context().escapeHtml(context().t('loading') || 'Loading…')}</p>`;
+
+      const types = ['product'];
+      const settings = window.App?.AppContext?.settings || {};
+      if (settings.predictiveCollections) types.push('collection');
+      if (settings.predictivePages) types.push('page');
+      if (settings.predictiveArticles) types.push('article');
+      const root = context().routes().root;
+      const endpoint = `${root}search/suggest.json?q=${encodeURIComponent(term)}&resources[type]=${types.join(',')}&resources[limit]=6&resources[options][unavailable_products]=last`;
+
       try {
-        const r = await fetch(endpoint, { credentials:'same-origin' });
-        const json = await r.json();
-        this.renderResults(json.resources?.results || {}, term);
-      } catch (e) {
-        body.innerHTML = `<div class="predictive-search-empty">${esc(U().t('searchUnavailable') || 'Search unavailable')}</div>`;
+        const response = await fetch(endpoint, { credentials: 'same-origin', signal: abortController.signal });
+        if (!response.ok) throw new Error(String(response.status));
+        const payload = await response.json();
+        this.render(payload.resources?.results || {}, term);
+      } catch (error) {
+        if (error.name === 'AbortError') return;
+        this.results.innerHTML = `<p class="predictive-hint">${context().escapeHtml(context().t('searchUnavailable') || 'Search is unavailable right now')}</p>`;
       }
     },
-    renderResults(resources, term) {
-      const body = $('[data-predictive-body]');
-      const sections = [];
-      if (resources.products?.length) {
-        sections.push(`
-          <div class="predictive-search-section">
-            <h4>Products</h4>
-            ${resources.products.slice(0, 5).map((p) => `
-              <a class="predictive-search-row" href="${url(p.url)}">
-                <div class="predictive-search-thumb">${p.featured_image?.url ? `<img src="${esc(U().withParam(p.featured_image.url, 'width', 100))}" alt="" loading="lazy">` : ''}</div>
-                <div class="predictive-search-meta">
-                  <div class="predictive-search-title">${esc(p.title)}</div>
-                  <div class="predictive-search-sub">${esc(formatMoney(p.price))}</div>
-                </div>
-              </a>`).join('')}
-            <a class="predictive-search-row" href="${esc(U().withParam(U().withParam(routesAll().search, 'q', term), 'type', 'product'))}" style="color:var(--color-accent);font-weight:600;font-size:.85rem;">${esc(U().t('viewAll') || 'View all results')} →</a>
-          </div>`);
-      }
-      if (resources.collections?.length) {
-        sections.push(`
-          <div class="predictive-search-section">
-            <h4>Collections</h4>
-            ${resources.collections.slice(0, 4).map((c) => `
-              <a class="predictive-search-row" href="${url(c.url)}">
-                <div class="predictive-search-meta">
-                  <div class="predictive-search-title">${esc(c.title)}</div>
-                  <div class="predictive-search-sub">${esc(c.products_count)} products</div>
-                </div>
-              </a>`).join('')}
-          </div>`);
-      }
-      if (resources.pages?.length) {
-        sections.push(`
-          <div class="predictive-search-section">
-            <h4>Pages</h4>
-            ${resources.pages.slice(0, 4).map((p) => `
-              <a class="predictive-search-row" href="${url(p.url)}">
-                <div class="predictive-search-meta">
-                  <div class="predictive-search-title">${esc(p.title)}</div>
-                </div>
-              </a>`).join('')}
-          </div>`);
-      }
-      if (resources.articles?.length) {
-        sections.push(`
-          <div class="predictive-search-section">
-            <h4>Articles</h4>
-            ${resources.articles.slice(0, 4).map((a) => `
-              <a class="predictive-search-row" href="${url(a.url)}">
-                <div class="predictive-search-meta">
-                  <div class="predictive-search-title">${esc(a.title)}</div>
-                </div>
-              </a>`).join('')}
-          </div>`);
-      }
-      if (sections.length === 0) {
-        body.innerHTML = `<div class="predictive-search-empty">${esc(U().t('noResults', { terms: term }) || `No matches for “${term}”`)}</div>`;
+
+    render(resources, term) {
+      const groups = [];
+      if (resources.products?.length) groups.push(this.productGroup(resources.products));
+      if (resources.collections?.length) groups.push(this.linkGroup('Collections', resources.collections));
+      if (resources.pages?.length) groups.push(this.linkGroup('Pages', resources.pages));
+      if (resources.articles?.length) groups.push(this.linkGroup('Articles', resources.articles));
+
+      if (!groups.length) {
+        this.results.innerHTML = `<div class="predictive-empty"><strong>${context().escapeHtml(context().t('noResults') || 'No results found')}</strong><a href="${context().safeUrl(context().routes().collections)}">Browse collections</a></div>`;
       } else {
-        body.innerHTML = sections.join('');
+        this.results.innerHTML = groups.join('');
+      }
+      this.input.setAttribute('aria-expanded', groups.length ? 'true' : 'false');
+      this.activeIndex = -1;
+    },
+
+    productGroup(products) {
+      const rows = products.slice(0, 6).map((product) => {
+        const image = product.image || product.featured_image?.url || '';
+        const price = this.searchPrice(product.price);
+        const comparePrice = this.searchPrice(product.compare_at_price_max || product.compare_at_price);
+        const compare = comparePrice && comparePrice.cents > price.cents
+          ? `<s>${context().escapeHtml(comparePrice.formatted)}</s>` : '';
+        return `<a class="predictive-row" role="option" href="${context().safeUrl(product.url)}">
+          <span class="predictive-image">${image ? `<img src="${context().escapeAttr(context().withParam(image, 'width', 120))}" alt="" width="60" height="60" loading="lazy">` : ''}</span>
+          <span class="predictive-meta"><strong>${context().escapeHtml(product.title)}</strong><span>${context().escapeHtml(price.formatted)} ${compare}</span></span>
+        </a>`;
+      }).join('');
+      return `<section class="predictive-group"><h3>Products</h3>${rows}</section>`;
+    },
+
+    linkGroup(title, items) {
+      return `<section class="predictive-group"><h3>${title}</h3>${items.slice(0, 5).map((item) => `<a class="predictive-row predictive-row--text" role="option" href="${context().safeUrl(item.url)}"><strong>${context().escapeHtml(item.title)}</strong></a>`).join('')}</section>`;
+    },
+
+    searchPrice(value) {
+      if (value == null || value === '') return { cents: 0, formatted: '' };
+      const normalized = String(value).replace(/[^0-9.-]/g, '');
+      const cents = Math.round((parseFloat(normalized) || 0) * 100);
+      return { cents, formatted: context().formatMoney(cents) };
+    },
+
+    onInputKeydown(event) {
+      const options = $$('[role="option"]', this.results);
+      if (!options.length) return;
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const direction = event.key === 'ArrowDown' ? 1 : -1;
+        this.activeIndex = ((this.activeIndex ?? -1) + direction + options.length) % options.length;
+        options[this.activeIndex].focus();
       }
     }
   };
-
-  function routesAll() {
-    return {
-      search: U().routes().search,
-      collections: U().routes().collections
-    };
-  }
 
   window.SearchEngine = SearchEngine;
 })();

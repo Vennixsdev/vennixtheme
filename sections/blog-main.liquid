@@ -1,31 +1,33 @@
-<div class="container section">
-  {% render 'breadcrumbs' %}
-  <small class="eyebrow">Editorial</small>
-  <h1>{{ blog.title }}</h1>
-
-  <div class="blog-grid" style="margin-top:1.4rem;display:grid;grid-template-columns:repeat(auto-fill,minmax(280px,1fr));gap:1rem;">
-    {%- for article in blog.articles -%}
-      <a href="{{ article.url }}" class="blog-card" style="border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;background:var(--color-surface);transition:transform .25s,border-color .25s;display:block;">
-        {%- if article.image -%}
-          <div style="aspect-ratio:3/2;overflow:hidden;">
-            <img src="{{ article.image | image_url: width: 600 }}" alt="{{ article.title | escape }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
-          </div>
-        {%- endif -%}
-        <div style="padding:1rem;">
-          <small style="color:var(--color-muted);">{{ article.published_at | date: '%b %d, %Y' }}</small>
-          <h3 style="margin:.4rem 0;font-size:1.05rem;">{{ article.title }}</h3>
-          <p style="color:color-mix(in oklab,var(--color-fg) 75%,transparent);font-size:.92rem;line-height:1.5;">{{ article.excerpt_or_content | strip_html | truncatewords: 32 }}</p>
-        </div>
-      </a>
+{%- paginate blog.articles by section.settings.articles_per_page -%}
+  <div class="container section-space">
+    {% render 'breadcrumbs' %}
+    <header><h1>{{ blog.title }}</h1></header>
+    {%- if blog.articles.size > 0 -%}
+      <div class="blog-grid">
+        {%- for article in blog.articles -%}
+          <article class="blog-card">
+            <a href="{{ article.url }}">
+              {%- if article.image != blank -%}<div class="blog-card-media">{{ article.image | image_url: width: 1000 | image_tag: widths: '360, 540, 750, 1000', sizes: '(max-width: 749px) 100vw, 33vw', loading: 'lazy', alt: article.title }}</div>{%- endif -%}
+              <div class="blog-card-content">
+                <time datetime="{{ article.published_at | date: '%Y-%m-%d' }}">{{ article.published_at | date: '%B %d, %Y' }}</time>
+                <h2>{{ article.title }}</h2>
+                {%- if article.excerpt_or_content != blank -%}<p>{{ article.excerpt_or_content | strip_html | truncatewords: 24 }}</p>{%- endif -%}
+              </div>
+            </a>
+          </article>
+        {%- endfor -%}
+      </div>
+      {%- if paginate.pages > 1 -%}<nav class="pagination" aria-label="Blog pagination">{{ paginate | default_pagination }}</nav>{%- endif -%}
     {%- else -%}
-      <p style="color:var(--color-muted);">No articles yet — check back soon.</p>
-    {%- endfor -%}
+      <div class="empty-state" style="margin-top:32px"><h2>No articles yet</h2></div>
+    {%- endif -%}
   </div>
-</div>
+{%- endpaginate -%}
 
 {% schema %}
 {
-  "name": "Blog main",
-  "tag": "section"
+  "name": "Blog",
+  "tag": "section",
+  "settings": [{ "type": "range", "id": "articles_per_page", "min": 6, "max": 24, "step": 3, "label": "Articles per page", "default": 12 }]
 }
 {% endschema %}

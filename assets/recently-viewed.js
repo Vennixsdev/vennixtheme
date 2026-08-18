@@ -73,7 +73,8 @@
     const U = window.VennixUtils;
     // All values below originate from localStorage, which is attacker-writable
     // via XSS elsewhere or a shared device — escape before templating.
-    grid.innerHTML = items.slice(0, 6).map((it) => {
+    const limit = parseInt(getConfig().limit, 10) || 6;
+    grid.innerHTML = items.slice(0, limit).map((it) => {
       // BUGFIX: was `${it.image}&width=400`, producing an invalid URL whenever
       // the source had no existing query string.
       const img = it.image ? U.withParam(it.image, 'width', 400) : '';
@@ -82,9 +83,9 @@
         <div class="product-card-media" style="aspect-ratio:1/1;overflow:hidden;border-radius:var(--radius-lg);background:var(--color-surface-2);">
           ${img ? `<img src="${U.escapeAttr(img)}" alt="${U.escapeAttr(it.title)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">` : ''}
         </div>
-        <div class="product-card-body">
+        <div class="product-card-content">
           <h3 class="product-card-title">${U.escapeHtml(it.title || 'View product')}</h3>
-          <div class="product-card-foot">${U.escapeHtml(it.price || '')}</div>
+          <div class="price"><span class="price-current">${U.escapeHtml(it.price || '')}</span></div>
         </div>
       </a>`;
     }).join('');

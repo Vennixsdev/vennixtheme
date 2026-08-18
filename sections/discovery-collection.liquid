@@ -1,51 +1,35 @@
-<div class="container section">
-  <div class="heading-row">
-    <div>
-      <small class="eyebrow">Smart discovery</small>
-      <h2>{{ section.settings.title | default: 'Related collections' }}</h2>
+{%- if section.blocks.size > 0 -%}
+  <section class="section-space">
+    <div class="container">
+      <div class="section-heading"><div><h2>{{ section.settings.title }}</h2></div></div>
+      <div class="collection-list collection-list--{{ section.settings.columns }}">
+        {%- for block in section.blocks -%}
+          {%- assign collection_item = block.settings.collection -%}
+          {%- if collection_item != blank -%}
+            {%- assign collection_image = collection_item.image | default: collection_item.products.first.featured_image -%}
+            <a class="collection-card collection-card--landscape" href="{{ collection_item.url }}" {{ block.shopify_attributes }}>
+              <div class="collection-card-media">
+                {%- if collection_image != blank -%}{{ collection_image | image_url: width: 1000 | image_tag: widths: '360, 540, 750, 1000', sizes: '(max-width: 749px) 82vw, 33vw', loading: 'lazy', alt: collection_item.title }}{%- else -%}<span class="media-placeholder" aria-hidden="true"></span>{%- endif -%}
+              </div>
+              <div class="collection-card-content"><h3>{{ block.settings.title | default: collection_item.title }}</h3><p>{{ collection_item.products_count }} {{ collection_item.products_count | pluralize: 'product', 'products' }}</p></div>
+            </a>
+          {%- endif -%}
+        {%- endfor -%}
+      </div>
     </div>
-  </div>
-
-  <div class="discovery-grid" style="display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:1rem;">
-    {%- for block in section.blocks -%}
-      {%- if block.type == 'collection' -%}
-        {%- assign c = collections[block.settings.collection] -%}
-        <a href="{{ c.url | default: collections.all.url }}" class="discovery-tile" {{ block.shopify_attributes }} style="position:relative;display:block;border:1px solid var(--color-border);border-radius:var(--radius-lg);overflow:hidden;background:var(--color-surface);transition:transform .25s,border-color .25s;">
-          <div style="aspect-ratio:3/2;overflow:hidden;">
-            {%- if c.image -%}<img src="{{ c.image | image_url: width: 600 }}" alt="{{ c.title | escape }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">{%- endif -%}
-          </div>
-          <div style="padding:1rem;display:flex;justify-content:space-between;align-items:end;gap:1rem;">
-            <div>
-              <strong style="display:block;font-size:1.05rem;">{{ block.settings.title | default: c.title }}</strong>
-              {%- if c != blank -%}
-                <small style="color:var(--color-muted);">{{ c.products_count }} products</small>
-              {%- endif -%}
-            </div>
-            <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:var(--color-accent);"><line x1="5" y1="12" x2="19" y2="12"/><polyline points="12 5 19 12 12 19"/></svg>
-          </div>
-        </a>
-      {%- endif -%}
-    {%- endfor -%}
-  </div>
-</div>
+  </section>
+{%- endif -%}
 
 {% schema %}
 {
-  "name": "Discovery collection grid",
+  "name": "Collection list",
   "tag": "section",
   "settings": [
-    { "type": "text", "id": "title", "default": "Related collections" }
+    { "type": "text", "id": "title", "label": "Heading", "default": "Collections" },
+    { "type": "select", "id": "columns", "label": "Desktop columns", "default": "3", "options": [{ "value": "2", "label": "2" }, { "value": "3", "label": "3" }, { "value": "4", "label": "4" }] }
   ],
-  "blocks": [
-    {
-      "type": "collection",
-      "name": "Collection",
-      "settings": [
-        { "type": "text", "id": "title", "label": "Title" },
-        { "type": "collection", "id": "collection", "label": "Collection" }
-      ]
-    }
-  ],
-  "max_blocks": 8
+  "blocks": [{ "type": "collection", "name": "Collection", "settings": [{ "type": "collection", "id": "collection", "label": "Collection" }, { "type": "text", "id": "title", "label": "Custom title" }] }],
+  "max_blocks": 8,
+  "presets": [{ "name": "Collection list" }]
 }
 {% endschema %}

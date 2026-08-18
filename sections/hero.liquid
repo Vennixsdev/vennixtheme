@@ -1,66 +1,61 @@
-<div class="container section--hero">
-  <div class="shop-hero reveal">
-    <div>
-      <span class="eyebrow shop-hero-eyebrow">{{ section.settings.eyebrow | default: 'New drop · limited run' }}</span>
-      <h1>{{ section.settings.heading | default: 'Engineered for <em>outliers</em>.' }}</h1>
-      <p>{{ section.settings.subheading | default: 'Premium products designed with intention. Free shipping on orders over $75, 30-day returns, and real human support whenever you need it.' }}</p>
-      <div style="display:flex;gap:.7rem;flex-wrap:wrap;">
-        <a href="{{ section.settings.cta_url | default: collections.all.url }}" class="btn btn--primary btn--lg">{{ section.settings.cta_text | default: 'Shop the drop' }}</a>
-        <a href="{{ section.settings.secondary_cta_url | default: routes.collections_url }}" class="btn btn--outline btn--lg">{{ section.settings.secondary_cta_text | default: 'Browse collections' }}</a>
-      </div>
-      <div style="display:flex;gap:1.2rem;margin-top:1.6rem;flex-wrap:wrap;">
-        {%- for metric in section.blocks -%}
-          {%- if metric.type == 'metric' -%}
-            <div {{ metric.shopify_attributes }}>
-              <strong style="display:block;font-size:1.4rem;background:linear-gradient(135deg,var(--color-accent),var(--color-accent-2));background-clip:text;color:transparent;-webkit-background-clip:text;">{{ metric.settings.value }}</strong>
-              <small style="color:var(--color-muted);">{{ metric.settings.label }}</small>
-            </div>
+{%- liquid
+  assign primary_url = section.settings.primary_url
+  if primary_url == blank
+    assign primary_url = collections.all.url
+  endif
+-%}
+<section class="hero-section{% if section.settings.full_width %} hero-section--full{% endif %}" style="--hero-min-height:{{ section.settings.height }}px;--hero-overlay:{{ section.settings.overlay_opacity | divided_by: 100.0 }};--hero-text:{{ section.settings.text_color }};">
+  <div class="{% unless section.settings.full_width %}container{% endunless %}">
+    <div class="hero hero--{{ section.settings.content_position }} hero--text-{{ section.settings.text_alignment }}{% if section.settings.desktop_image == blank %} hero--no-image{% endif %}">
+      {%- if section.settings.desktop_image != blank -%}
+        <picture class="hero-media">
+          {%- if section.settings.mobile_image != blank -%}
+            <source media="(max-width: 749px)" srcset="{{ section.settings.mobile_image | image_url: width: 480 }} 480w, {{ section.settings.mobile_image | image_url: width: 750 }} 750w, {{ section.settings.mobile_image | image_url: width: 1000 }} 1000w" sizes="100vw">
           {%- endif -%}
-        {%- endfor -%}
-      </div>
-    </div>
-    <div class="shop-hero-media">
-      {%- if section.settings.media != blank -%}
-        <img src="{{ section.settings.media | image_url: width: 900 }}" alt="{{ section.settings.heading | escape }}">
+          {{ section.settings.desktop_image | image_url: width: 2400 | image_tag: widths: '750, 1100, 1500, 1800, 2200, 2400', sizes: '100vw', class: 'hero-image', alt: section.settings.image_alt, loading: 'eager', fetchpriority: 'high' }}
+        </picture>
+        <span class="hero-overlay" aria-hidden="true"></span>
       {%- else -%}
-        <div style="width:100%;height:100%;display:grid;place-items:center;color:var(--color-muted);background:linear-gradient(135deg, var(--color-accent), var(--color-accent-2));">
-          <svg viewBox="0 0 24 24" width="80" height="80" fill="none" stroke="rgba(255,255,255,0.6)" stroke-width="1.4" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="2"/></svg>
-        </div>
+        <span class="hero-blank" aria-hidden="true"></span>
       {%- endif -%}
+
+      <div class="hero-content">
+        {%- if section.settings.eyebrow != blank -%}<p class="eyebrow">{{ section.settings.eyebrow }}</p>{%- endif -%}
+        {%- if section.settings.heading != blank -%}<h1>{{ section.settings.heading }}</h1>{%- endif -%}
+        {%- if section.settings.text != blank -%}<div class="hero-text rte">{{ section.settings.text }}</div>{%- endif -%}
+        {%- if section.settings.primary_label != blank or section.settings.secondary_label != blank -%}
+          <div class="hero-actions">
+            {%- if section.settings.primary_label != blank -%}<a class="button button--hero" href="{{ primary_url }}">{{ section.settings.primary_label }}</a>{%- endif -%}
+            {%- if section.settings.secondary_label != blank and section.settings.secondary_url != blank -%}<a class="button button--hero-secondary" href="{{ section.settings.secondary_url }}">{{ section.settings.secondary_label }}</a>{%- endif -%}
+          </div>
+        {%- endif -%}
+      </div>
     </div>
   </div>
-</div>
+</section>
 
 {% schema %}
 {
-  "name": "Hero",
+  "name": "Premium hero",
   "tag": "section",
   "settings": [
-    { "type": "textarea", "id": "eyebrow", "label": "Eyebrow", "default": "New drop · limited run" },
-    { "type": "text", "id": "heading", "label": "Heading", "default": "Engineered for outliers." },
-    { "type": "textarea", "id": "subheading", "label": "Subheading", "default": "Premium products designed with intention." },
-    { "type": "image_picker", "id": "media", "label": "Hero image" },
-    { "type": "text", "id": "cta_text", "label": "Primary CTA text", "default": "Shop the drop" },
-    { "type": "url", "id": "cta_url", "label": "Primary CTA URL" },
-    { "type": "text", "id": "secondary_cta_text", "label": "Secondary CTA text", "default": "Browse collections" },
-    { "type": "url", "id": "secondary_cta_url", "label": "Secondary CTA URL" }
+    { "type": "image_picker", "id": "desktop_image", "label": "Desktop image" },
+    { "type": "image_picker", "id": "mobile_image", "label": "Mobile image" },
+    { "type": "text", "id": "image_alt", "label": "Image alt text" },
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow" },
+    { "type": "text", "id": "heading", "label": "Heading", "default": "VennixStore" },
+    { "type": "richtext", "id": "text", "label": "Supporting text" },
+    { "type": "text", "id": "primary_label", "label": "Primary button label", "default": "Shop all" },
+    { "type": "url", "id": "primary_url", "label": "Primary button link" },
+    { "type": "text", "id": "secondary_label", "label": "Secondary button label" },
+    { "type": "url", "id": "secondary_url", "label": "Secondary button link" },
+    { "type": "range", "id": "height", "min": 420, "max": 800, "step": 20, "unit": "px", "label": "Desktop height", "default": 620 },
+    { "type": "range", "id": "overlay_opacity", "min": 0, "max": 80, "step": 5, "unit": "%", "label": "Image overlay", "default": 25 },
+    { "type": "color", "id": "text_color", "label": "Text color", "default": "#ffffff" },
+    { "type": "select", "id": "content_position", "label": "Content position", "default": "left", "options": [{ "value": "left", "label": "Left" }, { "value": "center", "label": "Center" }, { "value": "right", "label": "Right" }] },
+    { "type": "select", "id": "text_alignment", "label": "Text alignment", "default": "left", "options": [{ "value": "left", "label": "Left" }, { "value": "center", "label": "Center" }, { "value": "right", "label": "Right" }] },
+    { "type": "checkbox", "id": "full_width", "label": "Full width", "default": false }
   ],
-  "blocks": [
-    {
-      "type": "metric",
-      "name": "Metric",
-      "settings": [
-        { "type": "text", "id": "value", "label": "Value", "default": "10k+" },
-        { "type": "text", "id": "label", "label": "Label", "default": "Happy customers" }
-      ]
-    }
-  ],
-  "default": {
-    "blocks": [
-      { "type": "metric", "settings": { "value": "12k+", "label": "Customers" } },
-      { "type": "metric", "settings": { "value": "4.9★", "label": "Avg. rating" } },
-      { "type": "metric", "settings": { "value": "24h", "label": "Avg. ship time" } }
-    ]
-  }
+  "presets": [{ "name": "Premium hero" }]
 }
 {% endschema %}

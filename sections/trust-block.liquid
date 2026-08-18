@@ -1,41 +1,51 @@
-<div class="container section--tight">
-  <div class="trust-block">
-    {%- for block in section.blocks -%}
-      {%- if block.type == 'trust' -%}
-        <div class="trust-item" {{ block.shopify_attributes }}>
-          <span aria-hidden="true">{{ block.settings.icon }}</span>
-          <div>
-            <h3>{{ block.settings.title }}</h3>
-            <p>{{ block.settings.text }}</p>
-          </div>
-        </div>
-      {%- endif -%}
-    {%- endfor -%}
-  </div>
-</div>
+{%- if section.blocks.size > 0 -%}
+  <section class="section-space section-space--compact" aria-label="{{ section.settings.heading | default: 'Store information' | escape }}">
+    <div class="container">
+      {%- if section.settings.heading != blank -%}<h2 class="visually-hidden">{{ section.settings.heading }}</h2>{%- endif -%}
+      <div class="value-grid value-grid--{{ section.blocks.size }}">
+        {%- for block in section.blocks -%}
+          {%- if block.settings.title != blank or block.settings.text != blank -%}
+            <div class="value-item" {{ block.shopify_attributes }}>
+              <span class="value-icon" aria-hidden="true">
+                {%- case block.settings.icon -%}
+                  {%- when 'shipping' -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M3 5h11v12H3zM14 9h4l3 3v5h-7z"/><circle cx="7" cy="18" r="2"/><circle cx="18" cy="18" r="2"/></svg>
+                  {%- when 'returns' -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 8h11a5 5 0 0 1 0 10H9"/><path d="m8 4-4 4 4 4"/></svg>
+                  {%- when 'secure' -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="4" y="10" width="16" height="11" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+                  {%- else -%}<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><path d="M4 4h16v13H8l-4 4V4Z"/><path d="M8 9h8M8 13h5"/></svg>
+                {%- endcase -%}
+              </span>
+              <div>
+                {%- if block.settings.title != blank -%}<h3>{{ block.settings.title }}</h3>{%- endif -%}
+                {%- if block.settings.text != blank -%}<div class="value-text">{{ block.settings.text }}</div>{%- endif -%}
+                {%- if block.settings.link != blank and block.settings.link_label != blank -%}<a class="text-link" href="{{ block.settings.link }}">{{ block.settings.link_label }}</a>{%- endif -%}
+              </div>
+            </div>
+          {%- endif -%}
+        {%- endfor -%}
+      </div>
+    </div>
+  </section>
+{%- endif -%}
 
 {% schema %}
 {
-  "name": "Trust block",
-  "settings": [],
+  "name": "Value propositions",
+  "tag": "section",
+  "settings": [{ "type": "text", "id": "heading", "label": "Accessible section heading", "default": "Store information" }],
   "blocks": [
     {
-      "type": "trust",
-      "name": "Trust item",
+      "type": "item",
+      "name": "Value item",
       "settings": [
-        { "type": "html", "id": "icon", "label": "SVG icon (34px)" },
-        { "type": "text", "id": "title", "default": "Free shipping" },
-        { "type": "textarea", "id": "text", "default": "On orders over $75" }
+        { "type": "select", "id": "icon", "label": "Icon", "default": "support", "options": [{ "value": "support", "label": "Support" }, { "value": "shipping", "label": "Shipping" }, { "value": "returns", "label": "Returns" }, { "value": "secure", "label": "Secure" }] },
+        { "type": "text", "id": "title", "label": "Title", "default": "Customer support" },
+        { "type": "richtext", "id": "text", "label": "Text", "default": "<p>support@vennixstore.com</p>" },
+        { "type": "text", "id": "link_label", "label": "Link label" },
+        { "type": "url", "id": "link", "label": "Link" }
       ]
     }
   ],
-  "default": {
-    "blocks": [
-      { "type": "trust", "settings": { "title": "Free shipping", "text": "On orders over $75" } },
-      { "type": "trust", "settings": { "title": "Easy returns", "text": "30-day window on every item" } },
-      { "type": "trust", "settings": { "title": "Secure checkout", "text": "SSL · PCI · Shop Pay enabled" } },
-      { "type": "trust", "settings": { "title": "Real support", "text": "Reach a human within an hour" } }
-    ]
-  }
+  "max_blocks": 4,
+  "presets": [{ "name": "Value propositions", "blocks": [{ "type": "item" }] }]
 }
 {% endschema %}

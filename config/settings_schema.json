@@ -2,76 +2,41 @@
   {
     "name": "theme_info",
     "theme_name": "VennixStore Elite",
-    "theme_version": "3.0.0",
+    "theme_version": "1.0.0",
     "theme_author": "Vennixsdev",
     "theme_documentation_url": "https://github.com/Vennixsdev/vennixtheme",
     "theme_support_url": "mailto:support@vennixstore.com"
   },
   {
-    "name": "Logo",
+    "name": "Brand",
     "settings": [
-      {
-        "type": "image_picker",
-        "id": "logo",
-        "label": "Logo image"
-      },
-      {
-        "type": "range",
-        "id": "logo_width",
-        "min": 60,
-        "max": 240,
-        "step": 4,
-        "unit": "px",
-        "label": "Logo width",
-        "default": 120
-      },
-      {
-        "type": "image_picker",
-        "id": "favicon",
-        "label": "Favicon"
-      }
+      { "type": "image_picker", "id": "logo", "label": "Logo" },
+      { "type": "range", "id": "logo_width", "min": 72, "max": 240, "step": 4, "unit": "px", "label": "Desktop logo width", "default": 128 },
+      { "type": "range", "id": "mobile_logo_width", "min": 64, "max": 180, "step": 4, "unit": "px", "label": "Mobile logo width", "default": 104 },
+      { "type": "image_picker", "id": "favicon", "label": "Favicon" }
     ]
   },
   {
     "name": "Colors",
     "settings": [
-      { "type": "header", "content": "Brand palette" },
-      { "type": "color", "id": "color_background", "label": "Background", "default": "#0b0b0f" },
-      { "type": "color", "id": "color_surface", "label": "Surface", "default": "#14141a" },
-      { "type": "color", "id": "color_surface_2", "label": "Surface elevated", "default": "#1c1c24" },
-      { "type": "color", "id": "color_text", "label": "Text", "default": "#f5f5f7" },
-      { "type": "color", "id": "color_muted", "label": "Muted text", "default": "#8a8a93" },
-      { "type": "color", "id": "color_border", "label": "Borders", "default": "rgba(255,255,255,0.08)" },
-      { "type": "color", "id": "color_accent", "label": "Accent", "default": "#7c5cff" },
-      { "type": "color", "id": "color_accent_2", "label": "Accent secondary", "default": "#ff5c97" },
-      { "type": "color", "id": "color_success", "label": "Success", "default": "#22c55e" },
-      { "type": "color", "id": "color_danger", "label": "Danger / sale", "default": "#ef4444" }
+      { "type": "color", "id": "color_background", "label": "Background", "default": "#f7f7f5" },
+      { "type": "color", "id": "color_surface", "label": "Surface", "default": "#ffffff" },
+      { "type": "color", "id": "color_surface_2", "label": "Secondary surface", "default": "#efefec" },
+      { "type": "color", "id": "color_text", "label": "Text", "default": "#171715" },
+      { "type": "color", "id": "color_muted", "label": "Muted text", "default": "#696963" },
+      { "type": "color", "id": "color_border", "label": "Borders", "default": "#deded8" },
+      { "type": "color", "id": "color_accent", "label": "Accent and primary button", "default": "#171715" },
+      { "type": "color", "id": "color_accent_text", "label": "Text on accent", "default": "#ffffff" },
+      { "type": "color", "id": "color_sale", "label": "Sale", "default": "#b42318" },
+      { "type": "color", "id": "color_success", "label": "Availability", "default": "#26734d" }
     ]
   },
   {
     "name": "Typography",
     "settings": [
-      {
-        "type": "range",
-        "id": "base_font_size",
-        "min": 14,
-        "max": 20,
-        "step": 1,
-        "unit": "px",
-        "label": "Base font size",
-        "default": 16
-      },
-      {
-        "type": "select",
-        "id": "heading_font",
-        "label": "Heading font",
-        "default": "system",
-        "options": [
-          { "value": "system", "label": "System UI" },
-          { "value": "display", "label": "Display Elegant" },
-          { "value": "mono", "label": "Mono Modern" }
-        ]
-      }
+      { "type": "font_picker", "id": "body_font", "label": "Body font", "default": "assistant_n4" },
+      { "type": "font_picker", "id": "heading_font", "label": "Heading font", "default": "assistant_n6" },
+      { "type": "range", "id": "base_font_size", "min": 14, "max": 18, "step": 1, "unit": "px", "label": "Base font size", "default": 16 }
     ]
   },
   {
@@ -83,71 +48,105 @@
         "label": "Page width",
         "default": "wide",
         "options": [
-          { "value": "standard", "label": "Standard (1200px)" },
-          { "value": "wide", "label": "Wide (1440px)" },
-          { "value": "full", "label": "Full bleed" }
+          { "value": "standard", "label": "Standard" },
+          { "value": "wide", "label": "Wide" },
+          { "value": "full", "label": "Full" }
+        ]
+      },
+      {
+        "type": "select",
+        "id": "corner_radius",
+        "label": "Corner style",
+        "default": "soft",
+        "options": [
+          { "value": "square", "label": "Square" },
+          { "value": "soft", "label": "Soft" },
+          { "value": "rounded", "label": "Rounded" }
         ]
       },
       { "type": "checkbox", "id": "show_breadcrumbs", "label": "Show breadcrumbs", "default": true },
-      { "type": "checkbox", "id": "sticky_header", "label": "Sticky header", "default": true },
-      { "type": "checkbox", "id": "show_quick_add", "label": "Quick add on hover", "default": true }
+      { "type": "checkbox", "id": "sticky_header", "label": "Sticky header", "default": true }
+    ]
+  },
+  {
+    "name": "Buttons",
+    "settings": [
+      {
+        "type": "select",
+        "id": "button_style",
+        "label": "Primary button style",
+        "default": "solid",
+        "options": [
+          { "value": "solid", "label": "Solid" },
+          { "value": "outline", "label": "Outline" }
+        ]
+      },
+      { "type": "checkbox", "id": "button_uppercase", "label": "Use uppercase button labels", "default": false }
+    ]
+  },
+  {
+    "name": "Product cards",
+    "settings": [
+      { "type": "checkbox", "id": "show_card_vendor", "label": "Show vendor", "default": false },
+      { "type": "checkbox", "id": "show_card_badges", "label": "Show merchandising badges", "default": true, "info": "Sale and sold-out states use Shopify data. Merchandising badges use product tags: best-seller, new-arrival, new, and limited-edition." },
+      { "type": "checkbox", "id": "show_card_availability", "label": "Show availability", "default": false },
+      { "type": "checkbox", "id": "show_secondary_image", "label": "Show second image on hover", "default": true },
+      { "type": "checkbox", "id": "show_quick_add", "label": "Enable quick add", "default": true },
+      { "type": "checkbox", "id": "enable_wishlist", "label": "Enable browser-saved wishlist buttons", "default": false }
     ]
   },
   {
     "name": "Cart",
     "settings": [
-      { "type": "select", "id": "cart_type",
-        "label": "Cart type",
+      {
+        "type": "select",
+        "id": "cart_type",
+        "label": "Cart experience",
         "default": "drawer",
         "options": [
           { "value": "drawer", "label": "Drawer" },
           { "value": "page", "label": "Page" }
         ]
       },
-      { "type": "checkbox", "id": "show_upsells", "label": "Show cart upsells", "default": true },
-      { "type": "checkbox", "id": "free_shipping_bar", "label": "Free shipping progress bar", "default": true },
-      { "type": "text", "id": "free_shipping_threshold", "label": "Free shipping threshold", "default": "75" }
-    ]
-  },
-  {
-    "name": "Support & Contact",
-    "settings": [
-      { "type": "text", "id": "support_email", "label": "Support email", "default": "support@vennixstore.com" },
-      { "type": "text", "id": "support_hours", "label": "Support hours", "default": "Mon–Fri · 9AM–6PM EST" },
-      { "type": "text", "id": "store_phone", "label": "Phone", "default": "" }
+      { "type": "checkbox", "id": "show_cart_recommendations", "label": "Show Shopify product recommendations", "default": true },
+      { "type": "checkbox", "id": "free_shipping_bar", "label": "Show merchant-configured free-shipping progress", "default": false },
+      { "type": "text", "id": "free_shipping_threshold", "label": "Free-shipping threshold", "info": "Enter a whole amount in the store currency. Only used when the progress bar is enabled." }
     ]
   },
   {
     "name": "Search",
     "settings": [
       { "type": "checkbox", "id": "enable_predictive", "label": "Enable predictive search", "default": true },
-      { "type": "checkbox", "id": "enable_p_type_articles", "label": "Show articles in search", "default": true },
-      { "type": "checkbox", "id": "enable_p_type_pages", "label": "Show pages in search", "default": true },
-      { "type": "checkbox", "id": "enable_p_type_collections", "label": "Show collections in search", "default": true }
+      { "type": "checkbox", "id": "enable_p_type_collections", "label": "Include collections", "default": true },
+      { "type": "checkbox", "id": "enable_p_type_pages", "label": "Include pages", "default": true },
+      { "type": "checkbox", "id": "enable_p_type_articles", "label": "Include articles", "default": true },
+      { "type": "link_list", "id": "search_suggestions_menu", "label": "No-results collection menu", "info": "Optional navigation shown before a search and when no results are found." }
     ]
   },
   {
-    "name": "Footer",
+    "name": "Customer support",
     "settings": [
-      { "type": "checkbox", "id": "show_newsletter", "label": "Show newsletter signup", "default": true },
-      { "type": "checkbox", "id": "show_payment_icons", "label": "Show payment icons", "default": true },
-      { "type": "checkbox", "id": "show_trust_badges", "label": "Show trust badges", "default": true }
+      { "type": "text", "id": "support_email", "label": "Support email", "default": "support@vennixstore.com" },
+      { "type": "text", "id": "support_hours", "label": "Support hours" },
+      { "type": "text", "id": "store_phone", "label": "Phone" },
+      { "type": "checkbox", "id": "show_support_button", "label": "Show floating support button", "default": false }
     ]
   },
   {
-    "name": "Social",
+    "name": "Footer and social",
     "settings": [
-      { "type": "text", "id": "social_instagram", "label": "Instagram URL", "default": "" },
-      { "type": "text", "id": "social_tiktok", "label": "TikTok URL", "default": "" },
-      { "type": "text", "id": "social_x", "label": "X (Twitter) URL", "default": "" },
-      { "type": "text", "id": "social_youtube", "label": "YouTube URL", "default": "" }
+      { "type": "checkbox", "id": "show_payment_icons", "label": "Show enabled payment methods", "default": true },
+      { "type": "url", "id": "social_instagram", "label": "Instagram URL" },
+      { "type": "url", "id": "social_tiktok", "label": "TikTok URL" },
+      { "type": "url", "id": "social_x", "label": "X URL" },
+      { "type": "url", "id": "social_youtube", "label": "YouTube URL" }
     ]
   },
   {
-    "name": "Performance",
+    "name": "Performance and motion",
     "settings": [
-      { "type": "checkbox", "id": "lazy_load_images", "label": "Lazy load images", "default": true },
-      { "type": "checkbox", "id": "reduce_motion", "label": "Respect prefers-reduced-motion", "default": true }
+      { "type": "checkbox", "id": "enable_reveal_motion", "label": "Enable subtle reveal motion", "default": true },
+      { "type": "checkbox", "id": "enable_recently_viewed", "label": "Enable recently viewed products", "default": false }
     ]
   }
 ]

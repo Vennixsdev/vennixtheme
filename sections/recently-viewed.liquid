@@ -1,26 +1,19 @@
-<div class="container section recently-viewed" data-recently-viewed data-section-id="{{ section.id }}">
-  <div class="heading-row">
-    <div>
-      <small class="eyebrow">Picking up where you left off</small>
-      <h2>{{ section.settings.title | default: 'Recently viewed' }}</h2>
-    </div>
-  </div>
-  <div class="product-recommendations-grid" data-rv-grid></div>
-  <p class="rv-empty" data-rv-empty style="display:none;text-align:center;color:var(--color-muted);">No recently viewed items yet — start exploring.</p>
-</div>
-
-<script type="application/json" id="VennixRecentConfig">
-  { "limit": {{ section.settings.products_to_show | default: 6 }} }
-</script>
-{{ 'recently-viewed.js' | asset_url | script_tag: defer: true }}
+{%- if settings.enable_recently_viewed -%}
+  <section class="container section-space recently-viewed" data-recently-viewed data-section-id="{{ section.id }}">
+    <div class="section-heading"><div><h2>{{ section.settings.title }}</h2></div></div>
+    <div class="product-recommendations-grid" data-rv-grid></div>
+  </section>
+  <script type="application/json" id="VennixRecentConfig">{ "limit": {{ section.settings.products_to_show }} }</script>
+{%- endif -%}
 
 {% schema %}
 {
   "name": "Recently viewed",
   "tag": "section",
   "settings": [
-    { "type": "text", "id": "title", "default": "Recently viewed" },
-    { "type": "range", "id": "products_to_show", "min": 3, "max": 12, "default": 6 }
-  ]
+    { "type": "text", "id": "title", "label": "Heading", "default": "Recently viewed" },
+    { "type": "range", "id": "products_to_show", "min": 3, "max": 12, "step": 1, "label": "Products to show", "default": 6 }
+  ],
+  "presets": [{ "name": "Recently viewed" }]
 }
 {% endschema %}

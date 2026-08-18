@@ -1,28 +1,18 @@
-{%- comment -%}
-  Same fix as announcement-bar: the `if` must open with its own tag so the
-  trailing `{% endif %}` matches. `crumb_count` was assigned but never used.
-{%- endcomment -%}
-{%- if settings.show_breadcrumbs -%}
-<nav class="crumbs" aria-label="Breadcrumb">
-  <ol style="display:flex;gap:.4rem;flex-wrap:wrap;">
-    <li><a href="{{ routes.root_url }}">Home</a></li>
-    {%- if template.name == 'product' -%}
-      <li><a href="{{ collections.all.url }}">Catalog</a></li>
-      {%- if product.type != blank -%}
-        <li><a href="{{ product.type | url_for_type }}">{{ product.type }}</a></li>
-      {%- endif -%}
-      <li><span aria-current="page">{{ product.title }}</span></li>
-    {%- elsif template.name == 'collection' -%}
-      <li><span aria-current="page">{{ collection.title }}</span></li>
-    {%- elsif template.name == 'cart' -%}
-      <li><span aria-current="page">Cart</span></li>
-    {%- elsif template.name == 'search' -%}
-      <li><span aria-current="page">Search</span></li>
-    {%- elsif template.name == 'page' -%}
-      <li><span aria-current="page">{{ page.title }}</span></li>
-    {%- elsif template.name == 'index' -%}
-      <li><span aria-current="page">Home</span></li>
-    {%- endif -%}
-  </ol>
-</nav>
+{%- if settings.show_breadcrumbs and request.page_type != 'index' -%}
+  <nav class="crumbs" aria-label="Breadcrumb">
+    <ol role="list">
+      <li><a href="{{ routes.root_url }}">Home</a></li>
+      {%- case request.page_type -%}
+        {%- when 'product' -%}
+          {%- if collection != blank -%}<li><a href="{{ collection.url }}">{{ collection.title }}</a></li>{%- endif -%}
+          <li><span aria-current="page">{{ product.title }}</span></li>
+        {%- when 'collection' -%}<li><span aria-current="page">{{ collection.title }}</span></li>
+        {%- when 'cart' -%}<li><span aria-current="page">Cart</span></li>
+        {%- when 'search' -%}<li><span aria-current="page">Search</span></li>
+        {%- when 'page' -%}<li><span aria-current="page">{{ page.title }}</span></li>
+        {%- when 'blog' -%}<li><span aria-current="page">{{ blog.title }}</span></li>
+        {%- when 'article' -%}<li><a href="{{ blog.url }}">{{ blog.title }}</a></li><li><span aria-current="page">{{ article.title }}</span></li>
+      {%- endcase -%}
+    </ol>
+  </nav>
 {%- endif -%}

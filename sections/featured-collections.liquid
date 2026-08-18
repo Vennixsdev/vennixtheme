@@ -1,66 +1,55 @@
-<div class="container section">
-  <div class="heading-row">
-    <div>
-      <small class="eyebrow">Feeds</small>
-      <h2>{{ section.settings.title | default: 'Shop by category' }}</h2>
+<section class="section-space">
+  <div class="container">
+    <div class="section-heading">
+      <div>
+        {%- if section.settings.eyebrow != blank -%}<p class="eyebrow">{{ section.settings.eyebrow }}</p>{%- endif -%}
+        <h2>{{ section.settings.title }}</h2>
+        {%- if section.settings.text != blank -%}<div class="section-heading-text rte">{{ section.settings.text }}</div>{%- endif -%}
+      </div>
+      {%- if section.settings.view_all != blank and section.settings.view_all_label != blank -%}<a class="text-link" href="{{ section.settings.view_all }}">{{ section.settings.view_all_label }}</a>{%- endif -%}
     </div>
-    {%- if section.settings.view_all != blank -%}
-      <a href="{{ section.settings.view_all }}" class="btn btn--text">Browse all →</a>
-    {%- endif -%}
-  </div>
 
-  <div class="featured-collections-grid" style="display:grid;gap:1rem;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));">
-    {%- for block in section.blocks -%}
-      {%- if block.type == 'collection' -%}
-        {%- assign c = collections[block.settings.collection] -%}
-        <a href="{{ c.url | default: '#' }}" class="featured-collection-tile" {{ block.shopify_attributes }} style="position:relative;aspect-ratio:1/1;border-radius:var(--radius-lg);overflow:hidden;background:linear-gradient(135deg,var(--color-accent),var(--color-bg));display:block;border:1px solid var(--color-border);transition:transform .25s,border-color .25s;">
-          {%- if c != blank and c.image -%}
-            <img src="{{ c.image | image_url: width: 600 }}" alt="{{ c.title | escape }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
-          {%- endif -%}
-          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 50%, rgba(0,0,0,.55) 100%);"></div>
-          <div style="position:absolute;left:1rem;bottom:1rem;color:#fff;display:flex;flex-direction:column;gap:.2rem;">
-            <strong style="font-size:1.05rem;">{{ block.settings.title | default: c.title | default: 'Collection' }}</strong>
-            <small style="opacity:.85;">Shop now →</small>
-          </div>
-        </a>
-      {%- elsif block.type == 'image' -%}
-        <a href="{{ block.settings.url | default: '#' }}" class="featured-collection-tile" {{ block.shopify_attributes }} style="position:relative;aspect-ratio:1/1;border-radius:var(--radius-lg);overflow:hidden;display:block;border:1px solid var(--color-border);">
-          {%- if block.settings.image != blank -%}
-            <img src="{{ block.settings.image | image_url: width: 600 }}" alt="{{ block.settings.title | escape }}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">
-          {%- endif -%}
-          <div style="position:absolute;inset:0;background:linear-gradient(180deg,rgba(0,0,0,0) 50%, rgba(0,0,0,.55) 100%);"></div>
-          <div style="position:absolute;left:1rem;bottom:1rem;color:#fff;">
-            <strong style="font-size:1.05rem;">{{ block.settings.title }}</strong>
-          </div>
-        </a>
-      {%- endif -%}
-    {%- endfor -%}
+    <div class="collection-list collection-list--{{ section.settings.columns }}">
+      {%- for block in section.blocks -%}
+        {%- assign collection_item = block.settings.collection -%}
+        {%- if collection_item != blank -%}
+          {%- assign collection_image = collection_item.image | default: collection_item.products.first.featured_image -%}
+          <a class="collection-card" href="{{ collection_item.url }}" {{ block.shopify_attributes }}>
+            <div class="collection-card-media">
+              {%- if collection_image != blank -%}
+                {{ collection_image | image_url: width: 1200 | image_tag: widths: '320, 480, 640, 900, 1200', sizes: '(max-width: 749px) 82vw, 33vw', loading: 'lazy', alt: collection_item.title }}
+              {%- else -%}
+                <span class="media-placeholder" aria-hidden="true"></span>
+              {%- endif -%}
+            </div>
+            <div class="collection-card-content">
+              <h3>{{ block.settings.title | default: collection_item.title }}</h3>
+              {%- if section.settings.show_count -%}<p>{{ collection_item.products_count }} {{ collection_item.products_count | pluralize: 'product', 'products' }}</p>{%- endif -%}
+            </div>
+          </a>
+        {%- endif -%}
+      {%- endfor -%}
+    </div>
   </div>
-</div>
+</section>
 
 {% schema %}
 {
-  "name": "Featured collections",
+  "name": "Shop by category",
   "tag": "section",
   "settings": [
-    { "type": "text", "id": "title", "label": "Title", "default": "Shop by category" },
-    { "type": "url",  "id": "view_all", "label": "View-all URL" }
+    { "type": "text", "id": "eyebrow", "label": "Eyebrow" },
+    { "type": "text", "id": "title", "label": "Heading", "default": "Shop by category" },
+    { "type": "richtext", "id": "text", "label": "Text" },
+    { "type": "select", "id": "columns", "label": "Desktop columns", "default": "3", "options": [{ "value": "2", "label": "2" }, { "value": "3", "label": "3" }, { "value": "4", "label": "4" }] },
+    { "type": "checkbox", "id": "show_count", "label": "Show product count", "default": true },
+    { "type": "text", "id": "view_all_label", "label": "View-all label", "default": "View all" },
+    { "type": "url", "id": "view_all", "label": "View-all link" }
   ],
   "blocks": [
-    { "type": "collection", "name": "Collection",
-      "settings": [
-        { "type": "text", "id": "title", "label": "Label" },
-        { "type": "collection", "id": "collection", "label": "Collection" }
-      ]
-    },
-    { "type": "image", "name": "Custom tile",
-      "settings": [
-        { "type": "text", "id": "title", "label": "Label" },
-        { "type": "image_picker", "id": "image", "label": "Image" },
-        { "type": "url", "id": "url", "label": "URL" }
-      ]
-    }
+    { "type": "collection", "name": "Collection", "settings": [{ "type": "collection", "id": "collection", "label": "Collection" }, { "type": "text", "id": "title", "label": "Custom title" }] }
   ],
-  "max_blocks": 12
+  "max_blocks": 12,
+  "presets": [{ "name": "Shop by category" }]
 }
 {% endschema %}

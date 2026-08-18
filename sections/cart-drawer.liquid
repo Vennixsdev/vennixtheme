@@ -1,89 +1,60 @@
-<div class="cart-drawer" data-cart-drawer>
-  <div class="cart-drawer-head">
-    <h2>Your cart <small style="color:var(--color-muted);font-weight:500;" data-cart-count-inline>· {{ cart.item_count }} {{ cart.item_count | pluralize: 'item', 'items' }}</small></h2>
-    <button type="button" class="overlay-close" data-cart-close aria-label="Close cart">×</button>
+<div class="cart-drawer" data-cart-drawer role="dialog" aria-modal="true" aria-labelledby="CartDrawerTitle" tabindex="-1">
+  <div class="cart-drawer-header">
+    <div>
+      <h2 id="CartDrawerTitle">{{ 'cart.general.title' | t }}</h2>
+      <p data-cart-count-inline>{{ cart.item_count }} {{ cart.item_count | pluralize: 'item', 'items' }}</p>
+    </div>
+    <button type="button" class="icon-button" data-cart-close aria-label="{{ 'general.accessibility.close' | t }}">
+      <svg viewBox="0 0 24 24" width="22" height="22" fill="none" stroke="currentColor" stroke-width="1.8" aria-hidden="true"><path d="m5 5 14 14M19 5 5 19"/></svg>
+    </button>
   </div>
 
-  <div class="cart-drawer-body" data-cart-body>
-    {%- if cart.empty? -%}
-      <div class="cart-drawer-empty">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="9" cy="21" r="1"/><circle cx="20" cy="21" r="1"/><path d="M1 1h4l2.68 13.39a2 2 0 0 0 2 1.61h9.72a2 2 0 0 0 2-1.61L23 6H6"/></svg>
-        <strong style="display:block;margin-bottom:.4rem;color:var(--color-fg);">Your cart is empty</strong>
-        <p style="font-size:.9rem;max-width:24ch;margin:0 auto;">Browse our products — your finds await here.</p>
-        <a href="{{ collections.all.url }}" class="btn btn--ghost" style="margin-top:1rem;" data-cart-close>Continue shopping</a>
-      </div>
-    {%- else -%}
-      {%- render 'cart-line-list', cart: cart -%}
+  <div class="cart-drawer-scroll">
+    <div class="cart-drawer-body" data-cart-body>
+      {%- if cart.item_count == 0 -%}
+        <div class="cart-empty">
+          <h3>{{ 'cart.general.empty' | t }}</h3>
+          <a class="button button--secondary" href="{{ collections.all.url }}" data-cart-close>{{ 'cart.general.continue_shopping' | t }}</a>
+        </div>
+      {%- else -%}
+        {% render 'cart-line-list', cart: cart %}
+      {%- endif -%}
+    </div>
+
+    {%- if settings.show_cart_recommendations -%}
+      <section class="cart-recommendations" data-cart-recommendations data-product-id="{{ cart.items.first.product.id }}"{% if cart.item_count == 0 %} hidden{% endif %}>
+        <h3>You may also like</h3>
+        <div class="cart-recommendations-grid" data-cart-recommendations-grid></div>
+      </section>
     {%- endif -%}
   </div>
 
-  {%- unless cart.empty? -%}
-    <div class="cart-upsell" data-cart-upsell>
-      <h3>You may also like</h3>
-      <div class="cart-upsell-grid">
-        {%- comment -%}
-          Was a 1..4 index loop over a hardcoded 'recommended' handle, preceded by
-          a dead `assign products_to_show = '',' ',''`. Now driven by a section
-          setting with a sane fallback.
-        {%- endcomment -%}
-        {%- assign upsell_collection = section.settings.upsell_collection | default: collections['recommended'] -%}
-        {%- for p in upsell_collection.products limit: 4 -%}
-          <div class="cart-upsell-card" data-upsell-card data-product-id="{{ p.id }}" data-variant-id="{{ p.selected_or_first_available_variant.id | default: p.variants.first.id }}">
-            <div style="aspect-ratio:1/1;border-radius:var(--radius-md);overflow:hidden;background:var(--color-surface-2);">
-              {%- if p.featured_image -%}<img src="{{ p.featured_image | image_url: width: 200 }}" alt="{{ p.title | escape }}" loading="lazy" width="200" height="200" style="width:100%;height:100%;object-fit:cover;">{%- endif -%}
-            </div>
-            <div style="padding-top:.5rem;font-size:.85rem;font-weight:600;line-height:1.3;">{{ p.title | truncatewords: 6 }}</div>
-            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.3rem;">
-              <span>{{ p.price | money }}</span>
-              <button type="button" class="btn btn--text" style="padding:.3rem .5rem;font-size:.78rem;" data-upsell-add aria-label="{{ 'products.product.quick_add' | t }}: {{ p.title | escape }}">+ Add</button>
-            </div>
-          </div>
-        {%- endfor -%}
-      </div>
-    </div>
-
-    <div class="cart-drawer-foot" data-cart-foot>
-      {%- if settings.free_shipping_bar and settings.free_shipping_threshold != blank -%}
-        <div data-shipping-bar data-shipping-bar-drawer>
-          {%- assign threshold = settings.free_shipping_threshold | times: 100 -%}
-          {%- if threshold > 0 -%}
-            {%- assign pct = cart.total_price | times: 100 | divided_by: threshold | at_most: 100 -%}
-          {%- else -%}
-            {%- assign pct = 0 -%}
-          {%- endif -%}
-          <div class="shipping-progress"><div class="shipping-progress-bar" style="width: {{ pct }}%;"></div></div>
-          {%- if cart.total_price >= threshold -%}
-            <p class="shipping-progress-text">🎉 You get <strong>FREE shipping</strong>!</p>
-          {%- else -%}
-            {%- assign remaining = threshold | minus: cart.total_price -%}
-            <p class="shipping-progress-text">Add <strong>{{ remaining | money }}</strong> more for free shipping</p>
-          {%- endif -%}
+  <div class="cart-drawer-footer" data-cart-footer{% if cart.item_count == 0 %} hidden{% endif %}>
+    {%- if settings.free_shipping_bar and settings.free_shipping_threshold != blank -%}
+      {%- assign shipping_threshold = settings.free_shipping_threshold | times: 100 -%}
+      {%- if shipping_threshold > 0 -%}
+        {%- assign shipping_percent = cart.total_price | times: 100.0 | divided_by: shipping_threshold | at_most: 100 -%}
+        <div class="shipping-progress-wrap" data-shipping-bar>
+          <div class="shipping-progress" role="progressbar" aria-label="Free shipping progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ shipping_percent | round }}"><span class="shipping-progress-value" style="width:{{ shipping_percent }}%"></span></div>
+          <p class="shipping-progress-text">{%- if cart.total_price >= shipping_threshold -%}{{ 'cart.free_shipping.progress_done' | t }}{%- else -%}{%- assign shipping_remaining = shipping_threshold | minus: cart.total_price -%}{{ 'cart.free_shipping.progress_made' | t: remaining: shipping_remaining | money }}{%- endif -%}</p>
         </div>
       {%- endif -%}
+    {%- endif -%}
 
-      <div class="cart-drawer-subtotal">
-        <span>Subtotal</span>
-        <strong data-cart-subtotal>{{ cart.items_subtotal_price | money }}</strong>
-      </div>
-      <small style="color:var(--color-muted);text-align:center;">Shipping &amp; taxes calculated at checkout</small>
-      <form action="{{ routes.cart_url }}" method="post" novalidate>
-        <button type="submit" name="checkout" class="btn btn--primary btn--block btn--lg">Checkout</button>
-      </form>
-      <a href="{{ routes.cart_url }}" class="cart-full-page">View full cart →</a>
-    </div>
-  {%- endunless -%}
+    <div class="cart-subtotal"><span>{{ 'cart.general.subtotal' | t }}</span><strong data-cart-subtotal>{{ cart.items_subtotal_price | money }}</strong></div>
+    <p class="cart-checkout-note">Shipping and taxes are calculated at checkout.</p>
+    <form action="{{ routes.cart_url }}" method="post">
+      <button type="submit" name="checkout" class="button button--primary button--full">{{ 'cart.general.checkout' | t }}</button>
+    </form>
+    <div class="cart-footer-links"><button type="button" data-cart-close>{{ 'cart.general.continue_shopping' | t }}</button><a href="{{ routes.cart_url }}">View cart</a></div>
+  </div>
+
+  <div class="cart-error" data-cart-error role="alert" hidden></div>
 </div>
 
 {% schema %}
 {
   "name": "Cart drawer",
-  "settings": [
-    {
-      "type": "collection",
-      "id": "upsell_collection",
-      "label": "Upsell collection",
-      "info": "Products suggested inside the cart drawer. Falls back to the 'recommended' collection."
-    }
-  ]
+  "settings": []
 }
 {% endschema %}

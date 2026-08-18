@@ -1,39 +1,25 @@
-<div class="variant-picker" data-variant-picker>
-  {%- assign has_options = false -%}
-  {%- for option in product.options_with_values -%}
-    {%- assign has_options = true -%}
-    <div class="variant-group" data-option-index="{{ forloop.index0 }}">
-      <label>{{ option.name }}: <strong data-selected-option="{{ option.position }}">{% if option.selected_value %}{{ option.selected_value }}{% else %}{{ option.values.first }}{% endif %}</strong></label>
-      <div class="variant-options">
-        {%- for value in option.values -%}
-          {%- assign id = option.position | append: '-' | append: value | handle -%}
-          {%- if option.name == 'Color' or option.name == 'Colour' -%}
-            <button
-              type="button"
-              class="variant-swatch"
-              role="radio"
-              aria-checked="{% if option.selected_value == value %}true{% else %}false{% endif %}"
-              data-option-value="{{ value | escape }}"
-              aria-pressed="{% if option.selected_value == value %}true{% else %}false{% endif %}"
-              style="--swatch:{% if value == 'Black' %}#000{% elsif value == 'White' %}#fff{% elsif value == 'Red' %}#ef4444{% elsif value == 'Blue' %}#3b82f6{% elsif value == 'Green' %}#10b981{% elsif value == 'Yellow' %}#facc15{% elsif value == 'Pink' %}#ec4899{% elsif value == 'Purple' %}#a855f7{% elsif value == 'Orange' %}#f97316{% elsif value == 'Gray' or value == 'Grey' %}#6b7280{% else %}#888{% endif %};"
+{%- unless product.has_only_default_variant -%}
+  <div class="variant-picker" data-variant-picker>
+    {%- for option in product.options_with_values -%}
+      <fieldset class="variant-fieldset" data-option-index="{{ forloop.index0 }}">
+        <legend>{{ option.name }}: <strong data-selected-option>{{ option.selected_value }}</strong></legend>
+        <div class="variant-values">
+          {%- for value in option.values -%}
+            {%- assign input_id = section.id | append: '-' | append: option.position | append: '-' | append: value | handle -%}
+            <input
+              class="visually-hidden variant-input"
+              type="radio"
+              id="{{ input_id }}"
+              name="options[{{ option.name | escape }}]"
+              value="{{ value | escape }}"
+              data-option-input
+              {% if option.selected_value == value %}checked{% endif %}
             >
-              <span>{{ value }}</span>
-            </button>
-          {%- else -%}
-            <button
-              type="button"
-              class="variant-option"
-              role="radio"
-              aria-checked="{% if option.selected_value == value %}true{% else %}false{% endif %}"
-              data-option-value="{{ value | escape }}"
-              aria-pressed="{% if option.selected_value == value %}true{% else %}false{% endif %}"
-            >
-              {{ value }}
-            </button>
-          {%- endif -%}
-        {%- endfor -%}
-      </div>
-    </div>
-  {%- endfor -%}
-  <input type="hidden" name="id" data-variant-id value="{{ product.selected_or_first_available_variant.id }}">
-</div>
+            <label class="variant-label" for="{{ input_id }}">{{ value }}</label>
+          {%- endfor -%}
+        </div>
+      </fieldset>
+    {%- endfor -%}
+  </div>
+{%- endunless -%}
+<input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}" data-variant-id>

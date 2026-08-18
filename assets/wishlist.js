@@ -44,6 +44,7 @@
   function toast(label) {
     const el = document.createElement('div');
     el.textContent = label;
+    el.setAttribute('role', 'status');
     Object.assign(el.style, {
       position:'fixed', bottom:'24px', left:'50%', transform:'translateX(-50%) translateY(20px)',
       background:'var(--color-surface-2)', color:'var(--color-fg)', padding:'.6rem 1rem',
