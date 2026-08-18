@@ -2,7 +2,7 @@
 <html lang="{{ request.locale.iso_code }}">
   <head>
     <meta charset="utf-8">
-    <meta name="viewport" content="width=device-width,initial-scale=1.0,height=device=device-height,minimum-scale=1.0">
+    <meta name="viewport" content="width=device-width,initial-scale=1.0,minimum-scale=1.0">
     <meta name="theme-color" content="{{ settings.color_background | default: '#0b0b0f' }}">
     <meta name="description" content="{{ page_description | escape }}">
     {%- if settings.favicon != blank -%}
@@ -27,6 +27,8 @@
 
     {{ 'styles.css' | asset_url | stylesheet_tag }}
     {{ 'theme.js' | asset_url | script_tag: defer: true }}
+    {{ 'cart.js' | asset_url | script_tag: defer: true }}
+    {{ 'search.js' | asset_url | script_tag: defer: true }}
     {{ 'wishlist.js' | asset_url | script_tag: defer: true }}
 
     {%- style -%}
@@ -77,12 +79,44 @@
 
     <script type="application/json" id="ShopifyAppContext">
       {
-        "shop": {{ shop | json }},
-        "cart": {{ cart | json }},
+        "shop": {
+          "name": {{ shop.name | json }},
+          "domain": {{ shop.domain | json }},
+          "currency": {{ shop.currency | json }},
+          "moneyFormat": {{ shop.money_format | json }}
+        },
+        "routes": {
+          "root": {{ routes.root_url | json }},
+          "cart": {{ routes.cart_url | json }},
+          "cartAdd": {{ routes.cart_add_url | json }},
+          "cartChange": {{ routes.cart_change_url | json }},
+          "search": {{ routes.search_url | json }},
+          "collections": {{ routes.collections_url | json }}
+        },
+        "cart": {
+          "itemCount": {{ cart.item_count | json }},
+          "totalPrice": {{ cart.total_price | json }}
+        },
         "settings": {
           "moneyFormat": {{ shop.money_format | json }},
-          "currency": {{ cart.currency.iso_code | json }},
+          "currency": {{ cart.currency.iso_code | default: shop.currency | json }},
+          "locale": {{ request.locale.iso_code | json }},
+          "cart_type": {{ settings.cart_type | json }},
+          "freeShippingBar": {{ settings.free_shipping_bar | json }},
+          "freeShippingThreshold": {{ settings.free_shipping_threshold | default: 0 | times: 1 | json }},
           "ajaxEnabled": true
+        },
+        "strings": {
+          "addToCart": {{ 'products.product.add_to_cart' | t | json }},
+          "soldOut": {{ 'products.product.sold_out' | t | json }},
+          "added": {{ 'cart.general.added' | t | json }},
+          "cartEmpty": {{ 'cart.general.empty' | t | json }},
+          "continueShopping": {{ 'cart.general.continue_shopping' | t | json }},
+          "freeShippingDone": {{ 'cart.free_shipping.progress_done' | t | json }},
+          "freeShippingProgress": {{ 'cart.free_shipping.progress_made' | t: remaining: '__AMOUNT__' | json }},
+          "searchUnavailable": {{ 'general.search.unavailable' | t | json }},
+          "noResults": {{ 'general.search.no_results' | t: terms: '__TERMS__' | json }},
+          "viewAll": {{ 'general.search.view_all' | t | json }}
         }
       }
     </script>

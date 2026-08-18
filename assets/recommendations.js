@@ -10,9 +10,14 @@
   async function init() {
     const cfg = getConfig();
     if (!cfg.productId) return;
-    const url = `${cfg.baseUrl}?id=${cfg.productId}&limit=${cfg.limit || 4}&section_id=product-recommendations`;
+    const U = window.VennixUtils;
+    const base = cfg.baseUrl || `${U.routes().root}recommendations/products`;
+    let url = U.withParam(base, 'id', cfg.productId);
+    url = U.withParam(url, 'limit', cfg.limit || 4);
+    url = U.withParam(url, 'section_id', 'product-recommendations');
     try {
       const r = await fetch(url, { credentials: 'same-origin' });
+      if (!r.ok) throw new Error(`Recommendations request failed: ${r.status}`);
       const html = await r.text();
       const tmp  = new DOMParser().parseFromString(html, 'text/html');
       const incoming = tmp.querySelector('[data-product-recommendations]');
@@ -20,13 +25,13 @@
       if (incoming && local) {
         // extract product grid from incoming
         const grid = incoming.querySelector('.product-recommendations-grid');
-        if (grid) {
-          local.querySelector('.product-recommendations-grid').innerHTML = grid.innerHTML;
-          // bind quick-add
-          local.querySelectorAll('[data-quick-add]').forEach((b) => {
-            b.closest('form')?.addEventListener('submit', (e) => e);
-          });
-        }
+        const target = local.querySelector('.product-recommendations-grid');
+        // Was dereferenced without a guard — threw when the section markup
+        // changed shape, which silently killed bindScroll() below.
+        if (grid && target) target.innerHTML = grid.innerHTML;
+        // Nothing had to be bound here: cart.js already delegates [data-quick-add]
+        // from document, so the old no-op submit listener has been removed.
+        if (!grid || !target) local.style.display = 'none';
       }
       bindScroll();
     } catch (e) {
@@ -51,14 +56,22 @@
       e.preventDefault();
       const form = quick.closest('form');
       if (!form) return;
-      fetch(window.Shopify?.routes?.root + 'cart/add.js', {
-        method:'POST', body: new FormData(form), credentials:'same-origin'
-      }).then(() => {
-        if (window.CartEngine) CartEngine.openDrawer();
-        if (window.CartEngine) CartEngine.refreshCart('flash','Added');
-      });
+      const U = window.VennixUtils;
+      fetch(U.routes().cartAddJs, {
+        method:'POST',
+        body: new FormData(form),
+        credentials:'same-origin',
+        headers: { 'X-Requested-With':'XMLHttpRequest' }
+      }).then((res) => {
+        if (!res.ok) throw new Error('Add failed');
+        if (window.CartEngine) {
+          window.CartEngine.openDrawer();
+          window.CartEngine.refreshCart('flash', U.t('added') || 'Added');
+        }
+      }).catch((err) => console.warn('[Vennix] quick add failed', err));
     });
   }
 
-  document.addEventListener('DOMContentLoaded', init);
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', init);
+  else init();
 })();

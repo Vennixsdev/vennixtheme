@@ -174,6 +174,15 @@ small,.small{font-size:.85rem;color:var(--color-muted)}
   transition:transform var(--transition-slow),opacity var(--transition)
 }
 .product-card-media img.alt{position:absolute;inset:0;opacity:0}
+/* Overlay link replaces the old wrapping <a> so buttons/forms stay focusable.
+   Sits below the interactive controls (z-index 2/3) but above the imagery. */
+.product-card-media-link{
+  position:absolute;inset:0;z-index:1;display:block;
+  border-radius:inherit;text-indent:-9999px;overflow:hidden
+}
+.product-card-media-link:focus-visible{
+  outline:2px solid var(--color-accent);outline-offset:-3px
+}
 .product-card:hover .product-card-media img.primary{opacity:0}
 .product-card:hover .product-card-media img.alt{opacity:1;transform:scale(1.04)}
 .product-card-badge-stack{position:absolute;top:12px;left:12px;display:flex;flex-direction:column;gap:6px;z-index:2}

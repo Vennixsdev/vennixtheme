@@ -8,63 +8,92 @@
   const KEY = 'vxn_recently_v1';
 
   function read() { try { return JSON.parse(localStorage.getItem(KEY) || '[]'); } catch { return []; } }
-  function write(items) { localStorage.setItem(KEY, JSON.stringify(items)); }
+  function write(items) {
+    try { localStorage.setItem(KEY, JSON.stringify(items)); }
+    catch (e) { /* quota exceeded or storage disabled — non-fatal */ }
+  }
 
   function getConfig() {
     try { return JSON.parse(document.getElementById('VennixRecentConfig')?.textContent || '{}'); } catch { return {}; }
   }
 
   // record current product on product pages
-  async function record() {
+  function record() {
     const cfg = getConfig();
-    if (!cfg.limit) return;
-    const productId = window.__VARIANTS__?.[0]?.id;
-    const productKey = document.querySelector('.product-info')?.dataset?.productId;
+    const limit = parseInt(cfg.limit, 10) || 6;
+    const info = document.querySelector('[data-product-info]') || document.querySelector('.product-info');
+    const productKey = info?.dataset?.productId;
     if (!productKey) return;
-    const items = read();
-    const idx = items.indexOf(productKey);
+
+    const items = read().filter((it) => it && typeof it === 'object' && it.id != null);
+    // BUGFIX: this used items.indexOf(productKey) — comparing a string id against
+    // stored objects, so it never matched and duplicates piled up on every view.
+    const idx = items.findIndex((it) => String(it.id) === String(productKey));
     if (idx >= 0) items.splice(idx, 1);
-    items.unshift(ProductMeta(productKey));
-    write(items.slice(0, cfg.limit * 2));
+    items.unshift(productMeta(productKey, info));
+    write(items.slice(0, limit * 2));
   }
 
-  function ProductMeta(id) {
-    const card = document.querySelector(`[data-product-id="${id}"]`);
+  function productMeta(id, info) {
+    const card = document.querySelector(`[data-product-card][data-product-id="${CSS.escape(String(id))}"]`);
     if (card) return extractFromCard(card, id);
-    return { id, title: '', image: '', price: '' };
+    return {
+      id,
+      title: info?.dataset?.productTitle || document.querySelector('.product-info-title')?.textContent.trim() || '',
+      image: info?.dataset?.productImage || document.querySelector('[data-gallery-main] img')?.getAttribute('src') || '',
+      price: document.querySelector('.product-info-price .price-current')?.textContent.trim() || '',
+      url:   info?.dataset?.productUrl || location.pathname
+    };
   }
+
   function extractFromCard(card, id) {
     return {
       id,
       title: card.querySelector('.product-card-title')?.textContent.trim() || '',
-      image: card.querySelector('img.primary')?.src || '',
+      image: card.querySelector('img.primary')?.getAttribute('src') || '',
       price: card.querySelector('.price-current')?.textContent.trim() || '',
-      url:   card.querySelector('.product-card-title a')?.href || '#'
+      url:   card.querySelector('.product-card-title a')?.getAttribute('href') || '#'
     };
   }
 
-  async function hydrate() {
+  function hydrate() {
     const wrap = document.querySelector('[data-recently-viewed]');
     if (!wrap) return;
-    const items = read();
-    const grid = wrap.querySelector('[data-rv-grid]');
+    const grid  = wrap.querySelector('[data-rv-grid]');
     const empty = wrap.querySelector('[data-rv-empty]');
-    if (items.length === 0) { empty.style.display = ''; return; }
-    grid.innerHTML = items.slice(0, 6).map((it) => `
-      <a href="${it.url || '#'}" class="product-card" data-product-id="${it.id}">
+    const items = read().filter((it) => it && typeof it === 'object' && it.id != null);
+    if (!grid) return;
+    if (items.length === 0) {
+      if (empty) empty.style.display = '';
+      grid.innerHTML = '';
+      return;
+    }
+    if (empty) empty.style.display = 'none';
+
+    const U = window.VennixUtils;
+    // All values below originate from localStorage, which is attacker-writable
+    // via XSS elsewhere or a shared device — escape before templating.
+    grid.innerHTML = items.slice(0, 6).map((it) => {
+      // BUGFIX: was `${it.image}&width=400`, producing an invalid URL whenever
+      // the source had no existing query string.
+      const img = it.image ? U.withParam(it.image, 'width', 400) : '';
+      return `
+      <a href="${U.safeUrl(it.url)}" class="product-card" data-product-id="${U.escapeAttr(it.id)}">
         <div class="product-card-media" style="aspect-ratio:1/1;overflow:hidden;border-radius:var(--radius-lg);background:var(--color-surface-2);">
-          ${it.image ? `<img src="${it.image}&width=400" alt="${it.title}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">` : ''}
+          ${img ? `<img src="${U.escapeAttr(img)}" alt="${U.escapeAttr(it.title)}" loading="lazy" style="width:100%;height:100%;object-fit:cover;">` : ''}
         </div>
         <div class="product-card-body">
-          <h3 class="product-card-title">${it.title || 'View product'}</h3>
-          <div class="product-card-foot">${it.price || ''}</div>
+          <h3 class="product-card-title">${U.escapeHtml(it.title || 'View product')}</h3>
+          <div class="product-card-foot">${U.escapeHtml(it.price || '')}</div>
         </div>
-      </a>
-    `).join('');
+      </a>`;
+    }).join('');
   }
 
-  document.addEventListener('DOMContentLoaded', () => {
-    if (document.querySelector('[data-product-info]')) record();
+  function boot() {
+    if (document.querySelector('[data-product-info]') || document.querySelector('.product-info')) record();
     hydrate();
-  });
+  }
+  if (document.readyState === 'loading') document.addEventListener('DOMContentLoaded', boot);
+  else boot();
 })();

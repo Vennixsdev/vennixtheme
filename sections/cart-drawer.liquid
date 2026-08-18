@@ -13,8 +13,7 @@
         <a href="{{ collections.all.url }}" class="btn btn--ghost" style="margin-top:1rem;" data-cart-close>Continue shopping</a>
       </div>
     {%- else -%}
-      {%- assign lines_rendered = true -%}
-      {%- include 'cart-line-list' -%}
+      {%- render 'cart-line-list', cart: cart -%}
     {%- endif -%}
   </div>
 
@@ -22,33 +21,36 @@
     <div class="cart-upsell" data-cart-upsell>
       <h3>You may also like</h3>
       <div class="cart-upsell-grid">
-        {%- assign products_to_show = '',' ','' -%}
-        {%- for i in (1..4) -%}
-          {%- assign idx = i | plus: 0 -%}
-          {%- if collections['recommended'] != blank and collections['recommended'].products.size > 0 -%}
-            {%- assign p = collections['recommended'].products[i | minus: 1] -%}
-            {%- if p != blank -%}
-              <div class="cart-upsell-card" data-upsell-card data-product-id="{{ p.id }}" data-variant-id="{{ p.variants.first.id }}">
-                <div style="aspect-ratio:1/1;border-radius:var(--radius-md);overflow:hidden;background:var(--color-surface-2);">
-                  {%- if p.featured_image -%}<img src="{{ p.featured_image | image_url: width: 200 }}" alt="" loading="lazy" style="width:100%;height:100%;object-fit:cover;">{%- endif -%}
-                </div>
-                <div style="padding-top:.5rem;font-size:.85rem;font-weight:600;line-height:1.3;">{{ p.title | truncatewords: 6 }}</div>
-                <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.3rem;">
-                  <span>{{ p.price | money }}</span>
-                  <button type="button" class="btn btn--text" style="padding:.3rem .5rem;font-size:.78rem;" data-upsell-add>+ Add</button>
-                </div>
-              </div>
-            {%- endif -%}
-          {%- endif -%}
+        {%- comment -%}
+          Was a 1..4 index loop over a hardcoded 'recommended' handle, preceded by
+          a dead `assign products_to_show = '',' ',''`. Now driven by a section
+          setting with a sane fallback.
+        {%- endcomment -%}
+        {%- assign upsell_collection = section.settings.upsell_collection | default: collections['recommended'] -%}
+        {%- for p in upsell_collection.products limit: 4 -%}
+          <div class="cart-upsell-card" data-upsell-card data-product-id="{{ p.id }}" data-variant-id="{{ p.selected_or_first_available_variant.id | default: p.variants.first.id }}">
+            <div style="aspect-ratio:1/1;border-radius:var(--radius-md);overflow:hidden;background:var(--color-surface-2);">
+              {%- if p.featured_image -%}<img src="{{ p.featured_image | image_url: width: 200 }}" alt="{{ p.title | escape }}" loading="lazy" width="200" height="200" style="width:100%;height:100%;object-fit:cover;">{%- endif -%}
+            </div>
+            <div style="padding-top:.5rem;font-size:.85rem;font-weight:600;line-height:1.3;">{{ p.title | truncatewords: 6 }}</div>
+            <div style="display:flex;justify-content:space-between;align-items:center;margin-top:.3rem;">
+              <span>{{ p.price | money }}</span>
+              <button type="button" class="btn btn--text" style="padding:.3rem .5rem;font-size:.78rem;" data-upsell-add aria-label="{{ 'products.product.quick_add' | t }}: {{ p.title | escape }}">+ Add</button>
+            </div>
+          </div>
         {%- endfor -%}
       </div>
     </div>
 
     <div class="cart-drawer-foot" data-cart-foot>
-      {%- if settings.free_shipping_bar -%}
+      {%- if settings.free_shipping_bar and settings.free_shipping_threshold != blank -%}
         <div data-shipping-bar data-shipping-bar-drawer>
           {%- assign threshold = settings.free_shipping_threshold | times: 100 -%}
-          {%- assign pct = cart.total_price | times: 100 | divided_by: threshold | at_most: 100 -%}
+          {%- if threshold > 0 -%}
+            {%- assign pct = cart.total_price | times: 100 | divided_by: threshold | at_most: 100 -%}
+          {%- else -%}
+            {%- assign pct = 0 -%}
+          {%- endif -%}
           <div class="shipping-progress"><div class="shipping-progress-bar" style="width: {{ pct }}%;"></div></div>
           {%- if cart.total_price >= threshold -%}
             <p class="shipping-progress-text">🎉 You get <strong>FREE shipping</strong>!</p>
@@ -71,3 +73,17 @@
     </div>
   {%- endunless -%}
 </div>
+
+{% schema %}
+{
+  "name": "Cart drawer",
+  "settings": [
+    {
+      "type": "collection",
+      "id": "upsell_collection",
+      "label": "Upsell collection",
+      "info": "Products suggested inside the cart drawer. Falls back to the 'recommended' collection."
+    }
+  ]
+}
+{% endschema %}
