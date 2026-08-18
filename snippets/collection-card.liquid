@@ -1,0 +1,37 @@
+{%- comment -%}
+  Collection card — single shared implementation used by featured-collections,
+  discovery-collection, and main-list-collections.
+
+  Accepts:
+  - card_collection:  collection object (required)
+  - card_title:       optional custom title override (defaults to collection title)
+  - card_style:       'portrait' (default) | 'landscape'
+  - card_show_count:  boolean, show product count (default true)
+  - card_heading_tag: 'h2' | 'h3' (default 'h3') — match the page heading hierarchy
+  - card_block:       optional section block; renders shopify_attributes for the editor
+{%- endcomment -%}
+{%- assign card_image = card_collection.image | default: card_collection.products.first.featured_image -%}
+{%- assign card_style = card_style | default: 'portrait' -%}
+{%- assign card_heading_tag = card_heading_tag | default: 'h3' -%}
+{%- if card_show_count == nil -%}{%- assign card_show_count = true -%}{%- endif -%}
+<a class="collection-card{% if card_style == 'landscape' %} collection-card--landscape{% endif %}" href="{{ card_collection.url }}"{% if card_block != blank %} {{ card_block.shopify_attributes }}{% endif %}>
+  <div class="collection-card-media">
+    {%- if card_image != blank -%}
+      {%- if card_style == 'landscape' -%}
+        {{ card_image | image_url: width: 1000 | image_tag: widths: '360, 540, 750, 1000', sizes: '(max-width: 749px) 82vw, 33vw', loading: 'lazy', alt: card_collection.title }}
+      {%- else -%}
+        {{ card_image | image_url: width: 1200 | image_tag: widths: '320, 480, 640, 900, 1200', sizes: '(max-width: 749px) 82vw, 33vw', loading: 'lazy', alt: card_collection.title }}
+      {%- endif -%}
+    {%- else -%}
+      <span class="media-placeholder" aria-hidden="true"></span>
+    {%- endif -%}
+  </div>
+  <div class="collection-card-content">
+    {%- if card_heading_tag == 'h2' -%}
+      <h2>{{ card_title | default: card_collection.title }}</h2>
+    {%- else -%}
+      <h3>{{ card_title | default: card_collection.title }}</h3>
+    {%- endif -%}
+    {%- if card_show_count -%}<p>{{ card_collection.products_count }} {{ card_collection.products_count | pluralize: 'product', 'products' }}</p>{%- endif -%}
+  </div>
+</a>

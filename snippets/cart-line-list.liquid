@@ -9,11 +9,7 @@
       {%- if item.selling_plan_allocation != blank -%}<p class="cart-line-variant">{{ item.selling_plan_allocation.selling_plan.name }}</p>{%- endif -%}
       {%- for property in item.properties -%}{%- assign property_first = property.first | slice: 0 -%}{%- if property.last != blank and property_first != '_' -%}<p class="cart-line-property">{{ property.first }}: {{ property.last }}</p>{%- endif -%}{%- endfor -%}
       <div class="cart-line-bottom">
-        <div class="quantity-picker quantity-picker--small" data-cart-line-id="{{ item.key }}">
-          <button type="button" data-cart-qty="-1" aria-label="Decrease {{ item.product.title | escape }} quantity">−</button>
-          <input type="number" min="0" value="{{ item.quantity }}" data-cart-qty-input aria-label="Quantity for {{ item.product.title | escape }}">
-          <button type="button" data-cart-qty="1" aria-label="Increase {{ item.product.title | escape }} quantity">+</button>
-        </div>
+        {% render 'quantity-selector', qty_mode: 'cart', qty_item: item, qty_small: true %}
         <div class="cart-line-price">
           {%- if item.original_line_price > item.final_line_price -%}<s>{{ item.original_line_price | money }}</s>{%- endif -%}
           <strong data-line-total>{{ item.final_line_price | money }}</strong>

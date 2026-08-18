@@ -1,6 +1,6 @@
 # VennixStore Elite
 
-**Version:** 1.0.0
+**Version:** 1.1.0
 
 **Platform:** Shopify Online Store 2.0
 
@@ -27,6 +27,8 @@ VennixStore Elite is a minimal, product-first Shopify theme for the real VennixS
 ### Reusable components
 
 - `snippets/product-card.liquid` is the single product-card implementation used by home, collection, search, and recommendation sections.
+- `snippets/collection-card.liquid` is the single collection-card implementation shared by Shop by category, Collection list, and the collections list page.
+- `snippets/quantity-selector.liquid` renders the shared quantity picker for the product form, cart page, and cart drawer.
 - `snippets/price.liquid` handles current, compare-at, variable, and unit prices.
 - `snippets/badge.liquid` shows Shopify sale/sold-out states and merchant-supported product tags: `best-seller`, `new-arrival`, `new`, and `limited-edition`.
 - `snippets/filter-sidebar.liquid` renders only filters and values provided by Shopify for the current collection.
@@ -52,6 +54,7 @@ All scripts are dependency-free and deferred.
 5. Assign an optional collection menu under **Theme settings → Search → No-results collection menu**.
 6. Configure any announcement, value proposition, shipping threshold, support hours, or promotional copy only when it is accurate for the business.
 7. Keep `support@vennixstore.com` or replace it under **Theme settings → Customer support**.
+8. If the store sells to multiple markets, enable Shopify Markets countries/currencies. The footer selector appears automatically when more than one country or currency is available, and can be toggled under **Footer → Show country/currency selector**.
 
 The major design controls are intentionally concise: logo, fonts, palette, page width, corners, buttons, header, footer, product cards, cart, search, support, social links, motion, and section-level layout controls.
 

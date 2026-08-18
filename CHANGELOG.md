@@ -2,6 +2,19 @@
 
 All notable changes to VennixStore Elite are documented here. Versions follow [Semantic Versioning](https://semver.org/).
 
+## [1.1.0] — 2026-08-18
+
+### Added
+
+- `snippets/collection-card.liquid` — single shared collection card now used by Shop by category, Collection list, and the collections list page (portrait and landscape styles, optional product count, editor block attributes).
+- `snippets/quantity-selector.liquid` — shared quantity picker for the product form, cart page, and cart drawer, preserving all existing accessibility labels and JavaScript hooks.
+- Footer country/currency selector using Shopify's native localization form. Renders a market-based country picker (which also sets the market currency) or a currency picker, only when the store actually has multiple countries or currencies; merchant toggle in Footer settings.
+- `.gitignore` covering Shopify CLI local config, local tooling artifacts, and environment secrets.
+
+### Changed
+
+- `sections/product-main.liquid` schema now declares `max_blocks` for its information blocks.
+
 ## [1.0.0] — 2026-08-18
 
 ### Added

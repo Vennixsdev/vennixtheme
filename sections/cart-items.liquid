@@ -25,11 +25,7 @@
                   {%- endif -%}
                 {%- endfor -%}
                 <div class="cart-line-bottom">
-                  <div class="quantity-picker" data-cart-line-id="{{ item.key }}">
-                    <button type="button" data-cart-qty="-1" aria-label="Decrease {{ item.product.title | escape }} quantity">−</button>
-                    <input type="number" name="updates[]" min="0" value="{{ item.quantity }}" data-cart-qty-input aria-label="Quantity for {{ item.product.title | escape }}">
-                    <button type="button" data-cart-qty="1" aria-label="Increase {{ item.product.title | escape }} quantity">+</button>
-                  </div>
+                  {% render 'quantity-selector', qty_mode: 'cart', qty_item: item, qty_input_name: 'updates[]' %}
                   <div class="cart-line-price">{%- if item.original_line_price > item.final_line_price -%}<s>{{ item.original_line_price | money }}</s>{%- endif -%}<strong>{{ item.final_line_price | money }}</strong></div>
                 </div>
                 <a class="cart-line-remove" href="{{ item.url_to_remove }}" data-cart-remove>{{ 'cart.general.remove' | t }}</a>
