@@ -71,11 +71,7 @@
         <div class="product-form-actions">
           <label class="quantity-label" for="Quantity-{{ section.id }}">{{ 'products.product.quantity' | t }}</label>
           <div class="quantity-row">
-            <div class="quantity-picker">
-              <button type="button" data-qty="-1" aria-label="Decrease quantity">−</button>
-              <input id="Quantity-{{ section.id }}" type="number" name="quantity" min="1" value="1" inputmode="numeric" data-qty-input>
-              <button type="button" data-qty="1" aria-label="Increase quantity">+</button>
-            </div>
+            {% render 'quantity-selector', qty_mode: 'product', qty_section_id: section.id %}
             <button type="submit" class="button button--primary product-submit" data-add-to-cart{% unless selected_variant.available %} disabled{% endunless %}>
               {% if selected_variant.available %}{{ 'products.product.add_to_cart' | t }}{% else %}{{ 'products.product.sold_out' | t }}{% endif %}
             </button>
@@ -169,6 +165,7 @@
     { "type": "accordion", "name": "Accordion", "settings": [{ "type": "text", "id": "heading", "label": "Heading" }, { "type": "richtext", "id": "body", "label": "Content" }] },
     { "type": "page", "name": "Page accordion", "settings": [{ "type": "text", "id": "heading", "label": "Custom heading" }, { "type": "page", "id": "page", "label": "Page" }] }
   ],
+  "max_blocks": 12,
   "default": { "blocks": [{ "type": "trust" }] }
 }
 {% endschema %}

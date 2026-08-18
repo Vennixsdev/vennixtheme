@@ -4,11 +4,12 @@
   <div class="collection-list collection-list--{{ section.settings.columns }}">
     {%- for collection_item in collections -%}
       {%- unless collection_item.handle == 'frontpage' -%}
-        {%- assign collection_image = collection_item.image | default: collection_item.products.first.featured_image -%}
-        <a class="collection-card" href="{{ collection_item.url }}">
-          <div class="collection-card-media">{%- if collection_image != blank -%}{{ collection_image | image_url: width: 1000 | image_tag: widths: '320, 480, 640, 800, 1000', sizes: '(max-width: 749px) 82vw, 33vw', loading: 'lazy', alt: collection_item.title }}{%- else -%}<span class="media-placeholder" aria-hidden="true"></span>{%- endif -%}</div>
-          <div class="collection-card-content"><h2>{{ collection_item.title }}</h2><p>{{ collection_item.products_count }} {{ collection_item.products_count | pluralize: 'product', 'products' }}</p></div>
-        </a>
+        {% render 'collection-card',
+          card_collection: collection_item,
+          card_style: 'portrait',
+          card_show_count: true,
+          card_heading_tag: 'h2'
+        %}
       {%- endunless -%}
     {%- endfor -%}
   </div>

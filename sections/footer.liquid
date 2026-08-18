@@ -80,6 +80,35 @@
 
   <div class="container footer-bottom">
     <small>&copy; {{ 'now' | date: '%Y' }} {{ shop.name }}</small>
+
+    {%- assign show_locale_selector = false -%}
+    {%- if section.settings.show_locale_selector and localization.available_countries.size > 1 -%}
+      {%- assign show_locale_selector = true -%}
+    {%- elsif section.settings.show_locale_selector and localization.available_currencies.size > 1 -%}
+      {%- assign show_locale_selector = true -%}
+    {%- endif -%}
+    {%- if show_locale_selector -%}
+      {% form 'localization', class: 'footer-localization' %}
+        <input type="hidden" name="section_id" value="{{ section.id }}">
+        {%- if localization.available_countries.size > 1 -%}
+          <label class="visually-hidden" for="FooterCountrySelector">Country/region</label>
+          <select class="select" id="FooterCountrySelector" name="country_code" autocomplete="country">
+            {%- for country in localization.available_countries -%}
+              <option value="{{ country.iso_code }}"{% if country.iso_code == localization.country.iso_code %} selected{% endif %}>{{ country.name }} ({{ country.currency.iso_code }} {{ country.currency.symbol }})</option>
+            {%- endfor -%}
+          </select>
+        {%- elsif localization.available_currencies.size > 1 -%}
+          <label class="visually-hidden" for="FooterCurrencySelector">Currency</label>
+          <select class="select" id="FooterCurrencySelector" name="currency_code">
+            {%- for currency in localization.available_currencies -%}
+              <option value="{{ currency.iso_code }}"{% if currency.iso_code == localization.currency.iso_code %} selected{% endif %}>{{ currency.iso_code }} {{ currency.symbol }}</option>
+            {%- endfor -%}
+          </select>
+        {%- endif -%}
+        <button type="submit" class="button button--secondary footer-localization-submit">Update</button>
+      {% endform %}
+    {%- endif -%}
+
     {%- if settings.show_payment_icons and shop.enabled_payment_types.size > 0 -%}
       <div class="payment-icons" aria-label="Enabled payment methods">
         {%- for type in shop.enabled_payment_types -%}{{ type | payment_type_svg_tag }}{%- endfor -%}
@@ -101,6 +130,7 @@
     { "type": "text", "id": "menu_about_heading", "label": "About menu heading", "default": "About" },
     { "type": "link_list", "id": "menu_about", "label": "About menu" },
     { "type": "text", "id": "account_heading", "label": "Account and policy heading", "default": "Account & policies" },
+    { "type": "checkbox", "id": "show_locale_selector", "label": "Show country/currency selector when available", "default": true, "info": "Appears only when the store has multiple countries or currencies enabled." },
     { "type": "checkbox", "id": "show_newsletter", "label": "Show newsletter", "default": true },
     { "type": "text", "id": "newsletter_heading", "label": "Newsletter heading", "default": "Stay in the loop" },
     { "type": "textarea", "id": "newsletter_text", "label": "Newsletter text", "default": "Product news and store updates, sent to your inbox." }

@@ -1,0 +1,15 @@
+# Shopify CLI local config (contains store references — never commit)
+.shopify/
+
+# Local tooling
+node_modules/
+.theme-check/
+*.log
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Environments / secrets (hard rule: never commit credentials)
+.env
+.env.*

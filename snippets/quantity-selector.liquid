@@ -1,0 +1,26 @@
+{%- comment -%}
+  Quantity selector — shared picker used by the product form, cart page, and cart drawer.
+  Preserves the existing data-attribute JS hooks:
+  product mode -> [data-qty], [data-qty-input] (assets/product.js)
+  cart mode    -> [data-cart-line-id], [data-cart-qty], [data-cart-qty-input] (assets/cart.js)
+
+  Accepts:
+  - qty_mode:       'product' | 'cart' (required)
+  - qty_section_id: section id, used for the unique product-form input id (product mode)
+  - qty_item:       cart line item (cart mode)
+  - qty_small:      boolean, renders the compact drawer variant (cart mode)
+  - qty_input_name: optional name attribute for the input (cart page passes 'updates[]')
+{%- endcomment -%}
+{%- if qty_mode == 'cart' -%}
+  <div class="quantity-picker{% if qty_small %} quantity-picker--small{% endif %}" data-cart-line-id="{{ qty_item.key }}">
+    <button type="button" data-cart-qty="-1" aria-label="Decrease {{ qty_item.product.title | escape }} quantity">−</button>
+    <input type="number"{% if qty_input_name != blank %} name="{{ qty_input_name }}"{% endif %} min="0" value="{{ qty_item.quantity }}" data-cart-qty-input aria-label="Quantity for {{ qty_item.product.title | escape }}">
+    <button type="button" data-cart-qty="1" aria-label="Increase {{ qty_item.product.title | escape }} quantity">+</button>
+  </div>
+{%- else -%}
+  <div class="quantity-picker">
+    <button type="button" data-qty="-1" aria-label="Decrease quantity">−</button>
+    <input id="Quantity-{{ qty_section_id }}" type="number" name="quantity" min="1" value="1" inputmode="numeric" data-qty-input>
+    <button type="button" data-qty="1" aria-label="Increase quantity">+</button>
+  </div>
+{%- endif -%}

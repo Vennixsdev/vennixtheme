@@ -11,22 +11,15 @@
 
     <div class="collection-list collection-list--{{ section.settings.columns }}">
       {%- for block in section.blocks -%}
-        {%- assign collection_item = block.settings.collection -%}
-        {%- if collection_item != blank -%}
-          {%- assign collection_image = collection_item.image | default: collection_item.products.first.featured_image -%}
-          <a class="collection-card" href="{{ collection_item.url }}" {{ block.shopify_attributes }}>
-            <div class="collection-card-media">
-              {%- if collection_image != blank -%}
-                {{ collection_image | image_url: width: 1200 | image_tag: widths: '320, 480, 640, 900, 1200', sizes: '(max-width: 749px) 82vw, 33vw', loading: 'lazy', alt: collection_item.title }}
-              {%- else -%}
-                <span class="media-placeholder" aria-hidden="true"></span>
-              {%- endif -%}
-            </div>
-            <div class="collection-card-content">
-              <h3>{{ block.settings.title | default: collection_item.title }}</h3>
-              {%- if section.settings.show_count -%}<p>{{ collection_item.products_count }} {{ collection_item.products_count | pluralize: 'product', 'products' }}</p>{%- endif -%}
-            </div>
-          </a>
+        {%- if block.settings.collection != blank -%}
+          {% render 'collection-card',
+            card_collection: block.settings.collection,
+            card_title: block.settings.title,
+            card_style: 'portrait',
+            card_show_count: section.settings.show_count,
+            card_heading_tag: 'h3',
+            card_block: block
+          %}
         {%- endif -%}
       {%- endfor -%}
     </div>
