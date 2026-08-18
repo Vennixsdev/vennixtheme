@@ -36,7 +36,7 @@
         {%- assign shipping_percent = cart.total_price | times: 100.0 | divided_by: shipping_threshold | at_most: 100 -%}
         <div class="shipping-progress-wrap" data-shipping-bar>
           <div class="shipping-progress" role="progressbar" aria-label="Free shipping progress" aria-valuemin="0" aria-valuemax="100" aria-valuenow="{{ shipping_percent | round }}"><span class="shipping-progress-value" style="width:{{ shipping_percent }}%"></span></div>
-          <p class="shipping-progress-text">{%- if cart.total_price >= shipping_threshold -%}{{ 'cart.free_shipping.progress_done' | t }}{%- else -%}{%- assign shipping_remaining = shipping_threshold | minus: cart.total_price -%}{{ 'cart.free_shipping.progress_made' | t: remaining: shipping_remaining | money }}{%- endif -%}</p>
+          <p class="shipping-progress-text">{%- if cart.total_price >= shipping_threshold -%}{{ 'cart.free_shipping.progress_done' | t }}{%- else -%}{%- assign shipping_remaining = shipping_threshold | minus: cart.total_price -%}{%- assign shipping_remaining_formatted = shipping_remaining | money -%}{{ 'cart.free_shipping.progress_made' | t: remaining: shipping_remaining_formatted }}{%- endif -%}</p>
         </div>
       {%- endif -%}
     {%- endif -%}

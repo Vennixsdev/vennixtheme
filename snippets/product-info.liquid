@@ -1,3 +1,4 @@
+{%- assign selected_variant = product.selected_or_first_available_variant -%}
 {%- unless product.has_only_default_variant -%}
   <div class="variant-picker" data-variant-picker>
     {%- for option in product.options_with_values -%}
@@ -21,5 +22,26 @@
       </fieldset>
     {%- endfor -%}
   </div>
+
+  {%- comment -%}
+    Single name="id" control. JS keeps the radio UI and updates this select.
+    No-JS users get the native select so Shopify receives the chosen variant ID.
+  {%- endcomment -%}
+  <div class="product-variant-id-wrap">
+    <label class="product-variant-id-label no-js-only" for="VariantId-{{ section.id }}">{{ 'products.product.choose_options' | t }}</label>
+    <select
+      class="select product-variant-id"
+      id="VariantId-{{ section.id }}"
+      name="id"
+      data-variant-id
+    >
+      {%- for variant in product.variants -%}
+        <option value="{{ variant.id }}"{% if variant.id == selected_variant.id %} selected{% endif %}>
+          {{ variant.title }}{% unless variant.available %} — {{ 'products.product.sold_out' | t }}{% endunless %}
+        </option>
+      {%- endfor -%}
+    </select>
+  </div>
+{%- else -%}
+  <input type="hidden" name="id" value="{{ selected_variant.id }}" data-variant-id>
 {%- endunless -%}
-<input type="hidden" name="id" value="{{ product.selected_or_first_available_variant.id }}" data-variant-id>

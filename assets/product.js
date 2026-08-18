@@ -24,6 +24,11 @@
       this.bindSticky(root);
       this.bindZoom(root);
       this.bindShare(root);
+      const idControl = $('[data-variant-id]', root);
+      if (idControl && idControl.tagName === 'SELECT') {
+        idControl.setAttribute('aria-hidden', 'true');
+        idControl.tabIndex = -1;
+      }
       this.syncVariant(root, false);
     },
 
