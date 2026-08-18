@@ -15,15 +15,21 @@
   }
 
   function getCart() { return request(U().routes().cartJs); }
+  // Every mutation requests the Section Rendering API so the server-rendered
+  // cart drawer ('cart-drawer' section) stays the single source of truth.
+  // /cart/*.js echo the rendered markup back on the `sections` key.
   function changeLine(key, quantity) {
     return request(U().routes().cartChangeJs, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: key, quantity })
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ id: key, quantity, sections: 'cart-drawer' })
     });
   }
-  function addForm(formData) { return request(U().routes().cartAddJs, { method: 'POST', body: formData }); }
+  function addForm(formData) {
+    formData.append('sections', 'cart-drawer');
+    return request(U().routes().cartAddJs, { method: 'POST', body: formData });
+  }
   function addVariant(id, quantity = 1) {
     return request(U().routes().cartAddJs, {
-      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [{ id, quantity }] })
+      method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ items: [{ id, quantity }], sections: 'cart-drawer' })
     });
   }
 
@@ -49,19 +55,23 @@
         const quantityButton = event.target.closest('[data-cart-qty]');
         if (quantityButton) {
           event.preventDefault();
+          // While a mutation is in flight, ignore rapid clicks entirely —
+          // never optimistically change input.value for a request we skip.
+          if (mutationInProgress) return;
           const picker = quantityButton.closest('[data-cart-line-id]');
           const input = $('[data-cart-qty-input]', picker);
           const quantity = Math.max(0, (parseInt(input?.value, 10) || 0) + parseInt(quantityButton.dataset.cartQty, 10));
           if (input) input.value = quantity;
-          await this.change(picker?.dataset.cartLineId, quantity);
+          await this.change(picker?.dataset.cartLineId, quantity, this.captureFocus(quantityButton));
           return;
         }
 
         const removeButton = event.target.closest('[data-cart-remove]');
         if (removeButton) {
           event.preventDefault();
+          if (mutationInProgress) return;
           const line = removeButton.closest('[data-line-id]');
-          await this.change(line?.dataset.lineId, 0);
+          await this.change(line?.dataset.lineId, 0, this.captureFocus(removeButton));
           return;
         }
 
@@ -76,7 +86,13 @@
         const input = event.target.closest('[data-cart-qty-input]');
         if (!input) return;
         const picker = input.closest('[data-cart-line-id]');
-        await this.change(picker?.dataset.cartLineId, Math.max(0, parseInt(input.value, 10) || 0));
+        if (mutationInProgress) {
+          // Revert manual edits made while a mutation is in flight so the
+          // input never shows a quantity the server has not applied.
+          input.value = input.getAttribute('value');
+          return;
+        }
+        await this.change(picker?.dataset.cartLineId, Math.max(0, parseInt(input.value, 10) || 0), this.captureFocus(input));
       });
 
       document.addEventListener('submit', async (event) => {
@@ -90,9 +106,9 @@
         if (submit?.disabled) return;
         try {
           if (submit) { submit.disabled = true; submit.setAttribute('aria-busy', 'true'); }
-          await addForm(new FormData(form));
+          const addResponse = await addForm(new FormData(form));
           const cart = await getCart();
-          this.render(cart);
+          this.render(cart, addResponse?.sections);
           this.open(submit);
           this.announce(U().t('added') || 'Added to cart');
           const status = $('[data-product-form-status]', form);
@@ -107,36 +123,70 @@
       });
 
       this.mount?.addEventListener('click', (event) => { if (event.target === this.mount) this.close(); });
-      this.drawer?.addEventListener('keydown', (event) => {
+      // Bound on the mount (not the drawer node) so the handler survives
+      // drawer re-renders from the Section Rendering API.
+      this.mount?.addEventListener('keydown', (event) => {
+        const drawer = $('[data-cart-drawer]', this.mount);
+        if (!drawer) return;
         if (event.key === 'Escape') this.close();
-        window.VennixA11y?.trap(event, this.drawer);
+        window.VennixA11y?.trap(event, drawer);
       });
     },
 
-    async change(key, quantity) {
+    // Remember which cart-line control had focus so focus can be restored
+    // after the drawer's DOM is replaced (identified by stable line key).
+    captureFocus(node) {
+      const el = node || document.activeElement;
+      if (!el || !(this.mount || document).contains(el)) return null;
+      const line = el.closest('[data-line-id]');
+      if (!line) return null;
+      const qty = el.closest('[data-cart-qty]');
+      const control = qty ? `[data-cart-qty="${qty.dataset.cartQty}"]`
+        : el.closest('[data-cart-qty-input]') ? '[data-cart-qty-input]'
+        : el.closest('[data-cart-remove]') ? '[data-cart-remove]' : null;
+      return control ? { key: line.dataset.lineId, control } : null;
+    },
+
+    restoreFocus(context) {
+      if (!context || !this.mount) return;
+      const line = this.mount.querySelector(`[data-line-id="${CSS.escape(context.key)}"]`);
+      const target = line ? line.querySelector(context.control) : null;
+      const drawer = $('[data-cart-drawer]', this.mount);
+      // If the line no longer exists (item removed), land on the drawer
+      // itself — never try to focus a node that was deleted.
+      (target || drawer)?.focus();
+    },
+
+    async change(key, quantity, focusContext) {
       if (!key || mutationInProgress) return;
       mutationInProgress = true;
+      const drawer = () => $('[data-cart-drawer]', this.mount || document);
+      drawer()?.setAttribute('aria-busy', 'true');
       try {
-        const cart = await changeLine(key, quantity);
+        const response = await changeLine(key, quantity);
         if ($('[data-cart-lines]') && !this.mount?.contains($('[data-cart-lines]'))) {
           window.location.reload();
           return;
         }
-        this.render(cart);
+        this.render(response, response?.sections);
+        this.restoreFocus(focusContext);
         this.announce('Cart updated');
       } catch (error) {
         this.showError(error.message);
       } finally {
         mutationInProgress = false;
+        drawer()?.removeAttribute('aria-busy');
       }
     },
 
     open(opener) {
-      if (!this.mount || !this.drawer) return;
+      const drawer = $('[data-cart-drawer]', this.mount || document);
+      if (!this.mount || !drawer) return;
+      this.drawer = drawer;
       this.opener = opener || document.activeElement;
       this.mount.setAttribute('aria-hidden', 'false');
       document.body.classList.add('drawer-open');
-      requestAnimationFrame(() => this.drawer.focus());
+      requestAnimationFrame(() => drawer.focus());
     },
 
     close() {
@@ -146,12 +196,30 @@
       this.opener?.focus();
     },
 
-    render(cart) {
+    render(cart, sections) {
       if (!cart) return;
       $$('[data-cart-count]').forEach((node) => {
         node.textContent = cart.item_count;
         node.dataset.empty = String(cart.item_count === 0);
       });
+
+      // Primary path: swap in the server-rendered drawer from the Section
+      // Rendering API so Liquid markup remains the single source of truth.
+      const serverMarkup = sections?.['cart-drawer'];
+      if (this.mount && serverMarkup) {
+        const incoming = new DOMParser().parseFromString(serverMarkup, 'text/html').querySelector('[data-cart-drawer]');
+        if (incoming) {
+          this.drawer = incoming;
+          const current = this.mount.querySelector('[data-cart-drawer]');
+          if (current) current.replaceWith(incoming);
+          else this.mount.appendChild(incoming);
+          this.updateRecommendations(cart);
+          return;
+        }
+      }
+
+      // Fallback path: client-side rendering when section markup is
+      // unavailable (e.g. the initial page-load refresh from /cart.js).
       $$('[data-cart-count-inline]').forEach((node) => { node.textContent = `${cart.item_count} ${cart.item_count === 1 ? 'item' : 'items'}`; });
       $$('[data-cart-subtotal]').forEach((node) => { node.textContent = U().formatMoney(cart.items_subtotal_price); });
 
@@ -166,11 +234,19 @@
     lineMarkup(item) {
       const image = item.image ? `<img src="${U().escapeAttr(U().withParam(item.image, 'width', 220))}" alt="${U().escapeAttr(item.product_title)}" width="88" height="88" loading="lazy">` : '';
       const variant = item.variant_title && item.variant_title !== 'Default Title' ? `<p class="cart-line-variant">${U().escapeHtml(item.variant_title)}</p>` : '';
+      const sellingPlanName = item.selling_plan_allocation?.selling_plan?.name;
+      const sellingPlan = sellingPlanName ? `<p class="cart-line-variant">${U().escapeHtml(sellingPlanName)}</p>` : '';
+      // Mirror cart-line-list.liquid: visible (non-"_"-prefixed, non-blank)
+      // properties only. Both name and value are escaped before templating.
+      const properties = Object.entries(item.properties || {})
+        .filter(([name, value]) => value != null && value !== '' && !String(name).startsWith('_'))
+        .map(([name, value]) => `<p class="cart-line-property">${U().escapeHtml(String(name))}: ${U().escapeHtml(String(value))}</p>`)
+        .join('');
       const compare = item.original_line_price > item.final_line_price ? `<s>${U().escapeHtml(U().formatMoney(item.original_line_price))}</s>` : '';
       return `<div class="cart-line" data-line-id="${U().escapeAttr(item.key)}">
         <a class="cart-line-image" href="${U().safeUrl(item.url)}">${image}</a>
         <div class="cart-line-details">
-          <a class="cart-line-title" href="${U().safeUrl(item.url)}">${U().escapeHtml(item.product_title)}</a>${variant}
+          <a class="cart-line-title" href="${U().safeUrl(item.url)}">${U().escapeHtml(item.product_title)}</a>${variant}${sellingPlan}${properties}
           <div class="cart-line-bottom">
             <div class="quantity-picker quantity-picker--small" data-cart-line-id="${U().escapeAttr(item.key)}">
               <button type="button" data-cart-qty="-1" aria-label="Decrease ${U().escapeAttr(item.product_title)} quantity">−</button>
@@ -253,9 +329,9 @@
     async addRecommended(button) {
       try {
         button.disabled = true;
-        await addVariant(button.dataset.variantId, 1);
+        const addResponse = await addVariant(button.dataset.variantId, 1);
         const cart = await getCart();
-        this.render(cart);
+        this.render(cart, addResponse?.sections);
         this.announce(U().t('added') || 'Added to cart');
       } catch (error) {
         this.showError(error.message);

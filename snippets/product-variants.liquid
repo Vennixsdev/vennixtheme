@@ -9,6 +9,8 @@
       "price": {{ variant.price | json }},
       "compare_at_price": {{ variant.compare_at_price | json }},
       "sku": {{ variant.sku | json }},
+      "unit_price": {%- if variant.unit_price != blank -%}{{ variant.unit_price | json }}{%- else -%}null{%- endif -%},
+      "unit_price_measurement": {%- if variant.unit_price_measurement != blank -%}{ "reference_value": {{ variant.unit_price_measurement.reference_value | json }}, "reference_unit": {{ variant.unit_price_measurement.reference_unit | json }} }{%- else -%}null{%- endif -%},
       "featured_media_id": {{ variant.featured_media.id | json }}
     }{% unless forloop.last %},{% endunless %}
   {%- endfor -%}
