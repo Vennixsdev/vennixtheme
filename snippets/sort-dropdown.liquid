@@ -1,9 +1,22 @@
-<label class="sort-control">
-  <span>Sort by</span>
-  <select class="select" name="sort_by" data-sort-select aria-label="Sort products">
-    {%- assign selected_sort = collection.sort_by | default: collection.default_sort_by -%}
-    {%- for option in collection.sort_options -%}
-      <option value="{{ option.value | escape }}"{% if option.value == selected_sort %} selected{% endif %}>{{ option.name | escape }}</option>
+<form class="sort-form" action="{{ collection.url }}" method="get">
+  {%- comment -%} Preserve active Shopify filters for the native (no-JS) GET submit. {%- endcomment -%}
+  {%- for filter in collection.filters -%}
+    {%- for value in filter.active_values -%}
+      <input type="hidden" name="{{ value.param_name }}" value="{{ value.value }}">
     {%- endfor -%}
-  </select>
-</label>
+    {%- if filter.type == 'price_range' -%}
+      {%- if filter.min_value.value != nil -%}<input type="hidden" name="{{ filter.min_value.param_name }}" value="{{ filter.min_value.value | money_without_currency | replace: ',', '' }}">{%- endif -%}
+      {%- if filter.max_value.value != nil -%}<input type="hidden" name="{{ filter.max_value.param_name }}" value="{{ filter.max_value.value | money_without_currency | replace: ',', '' }}">{%- endif -%}
+    {%- endif -%}
+  {%- endfor -%}
+  <label class="sort-control">
+    <span>Sort by</span>
+    <select class="select" name="sort_by" data-sort-select aria-label="Sort products">
+      {%- assign selected_sort = collection.sort_by | default: collection.default_sort_by -%}
+      {%- for option in collection.sort_options -%}
+        <option value="{{ option.value | escape }}"{% if option.value == selected_sort %} selected{% endif %}>{{ option.name | escape }}</option>
+      {%- endfor -%}
+    </select>
+  </label>
+  <button type="submit" class="button button--secondary sort-submit no-js-only">Sort</button>
+</form>

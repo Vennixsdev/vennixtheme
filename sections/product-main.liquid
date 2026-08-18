@@ -53,8 +53,8 @@
         </p>
       {%- endif -%}
 
-      <div class="product-price" data-product-price>{% render 'price', product: product, use_variant: true %}</div>
-      <p class="product-availability{% unless selected_variant.available %} is-unavailable{% endunless %}" data-product-availability>{% if selected_variant.available %}In stock{% else %}Sold out{% endif %}</p>
+      <div class="product-price" data-product-price aria-live="polite">{% render 'price', product: product, use_variant: true %}</div>
+      <p class="product-availability{% unless selected_variant.available %} is-unavailable{% endunless %}" data-product-availability aria-live="polite">{% if selected_variant.available %}In stock{% else %}Sold out{% endif %}</p>
 
       {%- if cart.taxes_included or shop.shipping_policy != blank -%}
         <div class="product-tax-note">

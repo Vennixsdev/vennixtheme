@@ -27,8 +27,17 @@
           {%- endif -%}
         </div>
       {%- else -%}
+        {%- comment -%} Count each group from the current page's result set only — using global results_count against per-page counts can render empty group headings. {%- endcomment -%}
         {%- assign product_result_count = 0 -%}
-        {%- for item in search.results -%}{%- if item.object_type == 'product' -%}{%- assign product_result_count = product_result_count | plus: 1 -%}{%- endif -%}{%- endfor -%}
+        {%- assign collection_result_count = 0 -%}
+        {%- assign content_result_count = 0 -%}
+        {%- for item in search.results -%}
+          {%- case item.object_type -%}
+            {%- when 'product' -%}{%- assign product_result_count = product_result_count | plus: 1 -%}
+            {%- when 'collection' -%}{%- assign collection_result_count = collection_result_count | plus: 1 -%}
+            {%- when 'page', 'article' -%}{%- assign content_result_count = content_result_count | plus: 1 -%}
+          {%- endcase -%}
+        {%- endfor -%}
         {%- if product_result_count > 0 -%}
           <section class="search-result-group" aria-labelledby="SearchProducts-{{ section.id }}">
             <h2 id="SearchProducts-{{ section.id }}">Products</h2>
@@ -38,8 +47,6 @@
           </section>
         {%- endif -%}
 
-        {%- assign collection_result_count = 0 -%}
-        {%- for item in search.results -%}{%- if item.object_type == 'collection' -%}{%- assign collection_result_count = collection_result_count | plus: 1 -%}{%- endif -%}{%- endfor -%}
         {%- if collection_result_count > 0 -%}
           <section class="search-result-group" aria-labelledby="SearchCollections-{{ section.id }}">
             <h2 id="SearchCollections-{{ section.id }}">Collections</h2>
@@ -57,7 +64,6 @@
           </section>
         {%- endif -%}
 
-        {%- assign content_result_count = search.results_count | minus: product_result_count | minus: collection_result_count -%}
         {%- if content_result_count > 0 -%}
           <section class="search-result-group" aria-labelledby="SearchContent-{{ section.id }}">
             <h2 id="SearchContent-{{ section.id }}">Pages & articles</h2>

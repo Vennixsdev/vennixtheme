@@ -118,7 +118,15 @@
 
     priceMarkup(variant) {
       const onSale = variant.compare_at_price && variant.compare_at_price > variant.price;
-      return `<div class="price" data-price><div class="price-main"><span class="price-current${onSale ? ' price-current--sale' : ''}">${utils().escapeHtml(utils().formatMoney(variant.price))}</span>${onSale ? `<s class="price-compare">${utils().escapeHtml(utils().formatMoney(variant.compare_at_price))}</s>` : ''}</div></div>`;
+      let unit = '';
+      if (variant.unit_price_measurement && variant.unit_price != null) {
+        const measurement = variant.unit_price_measurement;
+        const referenceValue = measurement.reference_value != null && measurement.reference_value != 1
+          ? `${utils().escapeHtml(String(measurement.reference_value))} ` : '';
+        const referenceUnit = measurement.reference_unit ? utils().escapeHtml(String(measurement.reference_unit)) : '';
+        unit = `<small class="unit-price">${utils().escapeHtml(utils().formatMoney(variant.unit_price))} / ${referenceValue}${referenceUnit}</small>`;
+      }
+      return `<div class="price" data-price><div class="price-main"><span class="price-current${onSale ? ' price-current--sale' : ''}">${utils().escapeHtml(utils().formatMoney(variant.price))}</span>${onSale ? `<s class="price-compare">${utils().escapeHtml(utils().formatMoney(variant.compare_at_price))}</s>` : ''}</div>${unit}</div>`;
     },
 
     bindQuantity(root) {
